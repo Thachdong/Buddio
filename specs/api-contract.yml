@@ -1,0 +1,2674 @@
+openapi: 3.1.0
+info:
+  title: Buddio API
+  version: 0.1.0
+  summary: API ghi dữ liệu (write path) của Buddio — Next.js Route Handlers `/api/*` trên Firebase App Hosting.
+  description: |
+    Nguồn: `specs/ui-ux/wireframe.md` mục 4 (bảng thao tác, chỉ các thao tác Kênh = `API`),
+    `idea/business.md` (BR, ma trận Actor × BIZ), `idea/business-flows.md` (FLOW, SUP, NFR),
+    `specs/database.md` (TBL), `specs/tech-stack.md` (ADR-03, ADR-05, ADR-06, ADR-08, ADR-09, ADR-10, ADR-11).
+    Cập nhật: 2026-11-12.
+
+    ## Phạm vi
+    - Theo ADR-03: **mọi thao tác ghi** đi qua API này. Client **chỉ đọc** Firestore bằng realtime listener
+      (danh sách phòng, tin nhắn, thành viên, bạn bè, lời mời, thông báo, hồ sơ) — các thao tác Kênh `FS`,
+      `RTDB` (presence, đang soạn), `ST` (upload ảnh tạm vào `uploads/{uid}/…`) và `NAV` **không có endpoint**.
+    - Vì vậy API **không có endpoint danh sách có phân trang**. Nếu sau này cần, quy ước là cursor:
+      query `cursor` (opaque string) + `limit` (1–100, mặc định 50), response `{items, nextCursor}`. [ASSUMED → Q-044]
+    - Việc nền (`purgeRoom`, `purgeAccount` — ADR-11) là Cloud Functions task queue, không phải HTTP endpoint;
+      xóa theo hạn do Firestore TTL / Storage lifecycle làm (ADR-09) → không có endpoint.
+
+    ## Xác thực (ADR-06)
+    - Client đăng nhập Firebase Authentication (Google provider), lấy **Firebase ID token** và gửi
+      `Authorization: Bearer <idToken>` ở mọi request.
+    - Server `verifyIdToken(token, checkRevoked = true)`; kiểm phiên không dùng quá `sessionIdleDays` (30 ngày,
+      theo `users.last_active_at`) → `revokeRefreshTokens` + `401 SESSION_EXPIRED` (NFR-11).
+    - Người dùng đã có Firebase ID token nhưng **chưa đồng ý chính sách** (chưa có tài khoản Buddio) chỉ gọi được
+      `createSession`, `createAccount`, `openInviteLink`; endpoint khác trả `403 CONSENT_REQUIRED` (NFR-17).
+
+    ## Quy ước
+    - JSON `camelCase` (DB là `snake_case`). Thời gian ISO-8601 UTC (`date-time`).
+    - Không lộ cột nội bộ: `email_norm`, `lookup_window`, `display_name_custom`, `pair_key`, `schema_version`,
+      `deleted_at`, `images[].path` (đường dẫn Storage), payload link mời.
+    - Nhật ký server không ghi nội dung tin, ảnh, email dạng đọc được (NFR-27) → email luôn gửi trong **body**, không đặt trên URL.
+    - `400 VALIDATION_FAILED` = sai cấu trúc / kiểu (Zod). `422` = vi phạm quy tắc nghiệp vụ về dữ liệu.
+      `409` = xung đột trạng thái. Mọi lỗi dùng schema `Error`.
+    - Mỗi operation có `x-business`, `x-screens`, `x-roles`; khi có: `x-supporting`, `x-nfr`, `x-errors`.
+
+    ## Bảng mã lỗi nghiệp vụ
+    | code | HTTP | Ý nghĩa | Ref |
+    |---|---|---|---|
+    | VALIDATION_FAILED | 400 | Request sai cấu trúc / kiểu | — |
+    | UNAUTHENTICATED | 401 | Thiếu / sai ID token | ADR-06 |
+    | TOKEN_REVOKED | 401 | Token đã bị thu hồi (đăng xuất, xóa tài khoản) | NFR-11 |
+    | SESSION_EXPIRED | 401 | Quá 30 ngày không dùng | NFR-11 |
+    | CONSENT_REQUIRED | 403 | Chưa đồng ý chính sách / chưa có tài khoản | NFR-17, BR-01 |
+    | DISPLAY_NAME_INVALID | 422 | Tên hiển thị trống hoặc > 50 ký tự | BR-29 |
+    | EMAIL_INVALID | 422 | Email sai định dạng | BIZ-03 E1 |
+    | EMAIL_LOOKUP_RATE_LIMITED | 429 | Tra quá 100 email / giờ | NFR-16 |
+    | CANNOT_INVITE_SELF | 422 | Mời / tạo link cho chính email của mình | ENT-02 |
+    | FRIEND_TARGET_NOT_FOUND | 404 | "Không tìm thấy" khi gửi lời mời (không lộ lý do) | BR-04, BR-05 |
+    | ALREADY_FRIENDS | 409 | Hai người đã là bạn | BR-05, BR-09 |
+    | FRIEND_REQUEST_ALREADY_PENDING | 409 | Đã có lời mời đang chờ cùng chiều | BR-08 |
+    | REJECT_COOLDOWN | 409 | Bị từ chối chưa đủ 24 giờ | BR-10 |
+    | FRIEND_REQUEST_NOT_FOUND | 404 | Lời mời không tồn tại / không liên quan tới mình | — |
+    | FRIEND_REQUEST_FORBIDDEN | 403 | Sai vai trò (người gửi bấm chấp nhận, người nhận bấm thu hồi) | BR-08, BIZ-04 |
+    | FRIEND_REQUEST_NOT_PENDING | 409 | "Lời mời không còn hiệu lực" | BIZ-04 E1 |
+    | INVITE_LINK_INVALID | 410 | Link hỏng / hết hạn / người mời đã xóa / đã là bạn / có chặn | BR-06 |
+    | INVITE_LINK_WRONG_ACCOUNT | 403 | Email đăng nhập khác email được mời (không hiện email) | BR-07 |
+    | NOT_FRIENDS | 404 | "Hai bạn không còn là bạn bè" | BR-12 |
+    | USER_NOT_FOUND | 404 | Người dùng không tồn tại / đã xóa / không liên quan | BR-28 |
+    | CANNOT_BLOCK_SELF | 422 | Tự chặn mình | ENT-05 |
+    | ALREADY_BLOCKED | 409 | Đã đang chặn người này | BR-14 |
+    | BLOCK_NOT_FOUND | 404 | Không đang chặn người này | BR-14 |
+    | ROOM_NOT_FOUND | 404 | Phòng không tồn tại / đã xóa | ENT-06 |
+    | NOT_ROOM_MEMBER | 403 | Không còn là thành viên đang tham gia | BR-20 |
+    | NOT_ROOM_HOST | 403 | "Bạn không có quyền thực hiện thao tác này" | BR-18 |
+    | ROOM_FULL | 409 | Vượt 50 thành viên | BR-15 |
+    | MEMBERS_NOT_FRIENDS | 422 | Người được chọn không (còn) là bạn của host | BR-18, BR-15 |
+    | ROOM_TTL_INVALID | 422 | Thiếu / sai thời hạn tin của phòng ngắn hạn | BR-16 |
+    | ROOM_NAME_TOO_LONG | 422 | Tên phòng > 50 ký tự | Q-037 |
+    | MEMBER_ALREADY_IN_ROOM | 409 | Người được thêm đã ở trong phòng | BR-15 |
+    | MEMBER_NOT_IN_ROOM | 409 | "Người này không còn trong phòng" | BIZ-09 |
+    | CANNOT_TARGET_SELF | 422 | Host tự kick / tự chuyển quyền cho mình | BR-17 |
+    | HOST_TRANSFER_REQUIRED | 422 | Host rời phòng còn người khác mà chưa chọn người nhận quyền | BR-19 |
+    | ROOM_READ_ONLY | 409 | Phòng 2 người đang chỉ đọc | BR-13 |
+    | MESSAGE_EMPTY | 422 | Tin không có chữ lẫn ảnh | BR-21 |
+    | MESSAGE_TOO_LONG | 422 | Chữ > 1000 ký tự | BR-21 |
+    | TOO_MANY_IMAGES | 422 | > 10 ảnh | BR-21 |
+    | IMAGES_TOO_LARGE | 422 | Tổng ảnh > 10MB | BR-21 |
+    | INVALID_IMAGE_TYPE | 422 | Tệp không phải ảnh | BR-21 |
+    | UPLOAD_NOT_FOUND | 422 | Ảnh tạm không tồn tại / không thuộc người gửi | ADR-10 |
+    | MESSAGE_ID_CONFLICT | 409 | `messageId` đã dùng cho tin khác | NFR-10 |
+    | MESSAGE_NOT_FOUND | 404 | Tin không tồn tại / đã hết hạn | BR-16 |
+    | NOT_MESSAGE_SENDER | 403 | Không phải người gửi tin | BR-22 |
+    | MESSAGE_RECALLED | 409 | Tin đã thu hồi (không cấp link ảnh) | BR-22 |
+    | NOTIFICATION_NOT_FOUND | 404 | Thông báo không tồn tại / đã quá 30 ngày | NFR-21 |
+    | INTERNAL_ERROR | 500 | Lỗi hệ thống | — |
+  contact:
+    name: Buddio team
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://{host}/api
+    description: Firebase App Hosting (domain thật chốt khi deploy) [ASSUMED → Q-044]
+    variables:
+      host:
+        default: buddio.example.com
+  - url: http://localhost:3000/api
+    description: Local (Next.js dev + Firebase Emulator Suite)
+security:
+  - firebaseIdToken: []
+tags:
+  - name: Auth
+    description: Đăng nhập / đăng xuất / tạo tài khoản (BIZ-01)
+  - name: Account
+    description: Hồ sơ & cài đặt của tôi, xóa tài khoản (BIZ-02, BIZ-11)
+  - name: FriendRequests
+    description: Tra email, lời mời kết bạn (BIZ-03, BIZ-04)
+  - name: InviteLinks
+    description: Link mời tự chứa (BIZ-03 f, BIZ-05, SUP-07)
+  - name: Friends
+    description: Hủy kết bạn (BIZ-06)
+  - name: Blocks
+    description: Chặn / bỏ chặn (BIZ-07)
+  - name: Rooms
+    description: Tạo & quản lý phòng, thành viên (BIZ-08, BIZ-09)
+  - name: Messages
+    description: Nhắn tin, đã xem, thu hồi, xem ảnh (BIZ-10)
+  - name: Notifications
+    description: Đánh dấu đã đọc thông báo (SUP-03)
+  - name: System
+    description: Vận hành (ADR-12)
+
+paths:
+  /sessions:
+    post:
+      tags: [Auth]
+      operationId: createSession
+      summary: Đăng nhập với Google (bắt đầu phiên Buddio)
+      description: |
+        Client đã đăng nhập Firebase Auth bằng Google (popup trên desktop, redirect trên điện thoại) và gửi
+        Firebase ID token ở header. Server:
+        - Tài khoản `active` đã có → cập nhật `profiles.photo_url` theo Google, giữ tên nếu `display_name_custom`,
+          cập nhật `users.last_active_at` → `accountStatus = active`.
+        - Chưa có tài khoản (lần đầu, hoặc email thuộc tài khoản đã xóa — uid mới, BR-28) → **không tạo gì**,
+          trả `accountStatus = consent_required` kèm thông tin Google để hiện màn đồng ý chính sách (NFR-17).
+        Việc "đang mở dở link mời" (FLOW-01 bước 9) do client tự giữ `token` và điều hướng → không thuộc API.
+      x-business: [BIZ-01]
+      x-screens: [SCR-01.A1]
+      x-roles: [ACT-01, ACT-02]
+      x-nfr: [NFR-11, NFR-17]
+      x-errors: [UNAUTHENTICATED, TOKEN_REVOKED]
+      responses:
+        '200':
+          description: Kết quả đăng nhập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+              examples:
+                existing:
+                  summary: Đã có tài khoản
+                  value:
+                    accountStatus: active
+                    me:
+                      uid: u_7Hq2Lx
+                      email: an.nguyen@gmail.com
+                      displayName: An Nguyễn
+                      photoUrl: https://lh3.googleusercontent.com/a/abc
+                      anonymous: true
+                      showOnline: true
+                      status: active
+                      consentAt: '2026-11-01T08:00:00Z'
+                      createdAt: '2026-11-01T08:00:00Z'
+                    limits:
+                      maxRoomMembers: 50
+                      maxImagesPerMessage: 10
+                      maxImageBytesPerMessage: 10485760
+                      ttlDaysOptions: [1, 2, 3, 7, 30, 90]
+                      inviteTtlDays: 7
+                      notificationTtlDays: 30
+                      emailLookupsPerHour: 100
+                      rejectCooldownHours: 24
+                      maxMessageChars: 1000
+                      displayNameMax: 50
+                      roomNameMax: 50
+                      sessionIdleDays: 30
+                firstTime:
+                  summary: Lần đầu — cần đồng ý chính sách
+                  value:
+                    accountStatus: consent_required
+                    googleProfile:
+                      email: binh.tran@gmail.com
+                      displayName: Bình Trần
+                      photoUrl: https://lh3.googleusercontent.com/a/xyz
+                    policyVersion: '2026-11'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/current:
+    delete:
+      tags: [Auth]
+      operationId: deleteCurrentSession
+      summary: Đăng xuất
+      description: |
+        Gọi `revokeRefreshTokens(uid)` → mọi ID token hiện có bị từ chối (`checkRevoked`). Client gọi thêm
+        `signOut()` của Firebase Auth và ngắt presence RTDB. [ASSUMED → Q-044] Đăng xuất kết thúc phiên trên **mọi thiết bị**
+        (Firebase không thu hồi theo từng thiết bị; quản lý phiên nhiều thiết bị là SUP-14, ngoài phạm vi).
+      x-business: [BIZ-01]
+      x-screens: [SCR-11.A4, SCR-02.A5]
+      x-roles: [ACT-01]
+      x-nfr: [NFR-11]
+      x-errors: [UNAUTHENTICATED]
+      responses:
+        '204':
+          description: Đã kết thúc phiên
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /accounts:
+    post:
+      tags: [Auth]
+      operationId: createAccount
+      summary: Đồng ý chính sách quyền riêng tư và tạo tài khoản (lần đầu)
+      description: |
+        Tạo trong một transaction: `users/{uid}` (`anonymous = true`, `show_online = true`, `consent_at = now`),
+        `profiles/{uid}` (tên Google; thiếu tên → phần trước "@" của email — FLOW-01 E2), `email_index/{email_norm}`.
+        Email lấy từ ID token (không nhận từ body). Idempotent: tài khoản đã tồn tại → `200` trả tài khoản hiện có.
+      x-business: [BIZ-01]
+      x-screens: [SCR-01.A2]
+      x-roles: [ACT-01, ACT-02]
+      x-nfr: [NFR-17]
+      x-errors: [UNAUTHENTICATED, VALIDATION_FAILED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreate'
+            example:
+              acceptPrivacyPolicy: true
+              policyVersion: '2026-11'
+      responses:
+        '201':
+          description: Đã tạo tài khoản
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeWithLimits'
+              example:
+                me:
+                  uid: u_9Kd3Pq
+                  email: binh.tran@gmail.com
+                  displayName: Bình Trần
+                  photoUrl: https://lh3.googleusercontent.com/a/xyz
+                  anonymous: true
+                  showOnline: true
+                  status: active
+                  consentAt: '2026-11-12T03:10:00Z'
+                  createdAt: '2026-11-12T03:10:00Z'
+                limits:
+                  maxRoomMembers: 50
+                  maxImagesPerMessage: 10
+                  maxImageBytesPerMessage: 10485760
+                  ttlDaysOptions: [1, 2, 3, 7, 30, 90]
+                  inviteTtlDays: 7
+                  notificationTtlDays: 30
+                  emailLookupsPerHour: 100
+                  rejectCooldownHours: 24
+                  maxMessageChars: 1000
+                  displayNameMax: 50
+                  roomNameMax: 50
+                  sessionIdleDays: 30
+        '200':
+          description: Tài khoản đã tồn tại (gọi lại)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeWithLimits'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me:
+    get:
+      tags: [Account]
+      operationId: getMe
+      summary: Tải hồ sơ của tôi và giới hạn cấu hình (khởi động app)
+      description: |
+        Đọc `users`, `profiles`, `config/limits` (cache 5 phút). Cập nhật `users.last_active_at` tối đa 1 lần / giờ.
+        Quá `sessionIdleDays` → thu hồi phiên, `401 SESSION_EXPIRED` (NFR-11).
+      x-business: [BIZ-01, BIZ-02]
+      x-screens: [LAYOUT.A1]
+      x-roles: [ACT-01]
+      x-nfr: [NFR-08, NFR-11]
+      x-errors: [UNAUTHENTICATED, TOKEN_REVOKED, SESSION_EXPIRED, CONSENT_REQUIRED]
+      responses:
+        '200':
+          description: Hồ sơ và giới hạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeWithLimits'
+              example:
+                me:
+                  uid: u_7Hq2Lx
+                  email: an.nguyen@gmail.com
+                  displayName: An Nguyễn
+                  photoUrl: https://lh3.googleusercontent.com/a/abc
+                  anonymous: true
+                  showOnline: true
+                  status: active
+                  consentAt: '2026-11-01T08:00:00Z'
+                  createdAt: '2026-11-01T08:00:00Z'
+                limits:
+                  maxRoomMembers: 50
+                  maxImagesPerMessage: 10
+                  maxImageBytesPerMessage: 10485760
+                  ttlDaysOptions: [1, 2, 3, 7, 30, 90]
+                  inviteTtlDays: 7
+                  notificationTtlDays: 30
+                  emailLookupsPerHour: 100
+                  rejectCooldownHours: 24
+                  maxMessageChars: 1000
+                  displayNameMax: 50
+                  roomNameMax: 50
+                  sessionIdleDays: 30
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`CONSENT_REQUIRED` — chưa có tài khoản Buddio'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Account]
+      operationId: updateMe
+      summary: Đổi tên hiển thị / bật-tắt ẩn danh / bật-tắt hiển thị online
+      description: |
+        Gửi một hoặc nhiều field. Đổi tên → `profiles.display_name`, `display_name_custom = true` (tên mới hiện ở mọi nơi,
+        kể cả tin cũ — Q-029). `anonymous` / `showOnline` lưu ngay khi gạt công tắc (FLOW-02 A1).
+        Tắt `showOnline` → client đồng thời ghi `status/{uid}.state = offline` ở RTDB (ADR-05).
+      x-business: [BIZ-02]
+      x-screens: [SCR-11.A1, SCR-11.A2, SCR-11.A3]
+      x-roles: [ACT-01]
+      x-nfr: [NFR-04]
+      x-errors: [VALIDATION_FAILED, DISPLAY_NAME_INVALID, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeUpdate'
+            examples:
+              rename:
+                summary: Đổi tên
+                value:
+                  displayName: An Gamer
+              anonymousOff:
+                summary: Tắt ẩn danh
+                value:
+                  anonymous: false
+      responses:
+        '200':
+          description: Hồ sơ sau cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              example:
+                uid: u_7Hq2Lx
+                email: an.nguyen@gmail.com
+                displayName: An Gamer
+                photoUrl: https://lh3.googleusercontent.com/a/abc
+                anonymous: true
+                showOnline: true
+                status: active
+                consentAt: '2026-11-01T08:00:00Z'
+                createdAt: '2026-11-01T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`DISPLAY_NAME_INVALID` (BR-29) — tên trống sau trim hoặc > 50 ký tự; giữ tên cũ'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Account]
+      operationId: deleteMe
+      summary: Xóa tài khoản
+      description: |
+        Phần tức thì (một transaction): `users.status = deleted`, `deleted_at`, xóa `email_norm`; `profiles.status = deleted`,
+        xóa tên / ảnh / email; xóa `email_index`; `revokeRefreshTokens`. Sau đó đẩy task `purgeAccount` (ADR-11):
+        rời từng phòng (tự chuyển host cho thành viên vào sớm nhất + thông báo SUP-02, phòng trống → `purgeRoom`),
+        hủy bạn bè, đóng lời mời (`account_deleted`), xóa quan hệ chặn, xóa Firebase Auth user (BR-28).
+        Xác nhận "không khôi phục được" là việc của UI.
+      x-business: [BIZ-11]
+      x-screens: [SCR-11.A5]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-02, SUP-08]
+      x-nfr: [NFR-11, NFR-18]
+      x-errors: [UNAUTHENTICATED, CONSENT_REQUIRED]
+      responses:
+        '202':
+          description: Tài khoản đã ở trạng thái Đã xóa; dọn dữ liệu chạy nền
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeleted'
+              example:
+                status: deleted
+                deletedAt: '2026-11-12T04:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /email-lookups:
+    post:
+      tags: [FriendRequests]
+      operationId: createEmailLookup
+      summary: Tra email để kết bạn
+      description: |
+        Trả kiểu kết quả theo BIZ-03 (thứ tự kiểm tra):
+        `self` (a) → có quan hệ chặn bất kỳ chiều nào → `not_found` → `already_friends` (b) → `pending_sent` (c)
+        → `reject_cooldown` (d) → `found` (e: tắt ẩn danh, không chặn, chưa là bạn) → `not_found` (f).
+
+        **BR-04 / NFR-15:** `not_found` gộp chưa đăng ký / đang ẩn danh / có chặn — body **giống hệt nhau** (chỉ
+        `{"result":"not_found"}`), thời gian phản hồi được làm đều về một mức tối thiểu cố định cho mọi kết quả.
+        [ASSUMED → Q-044] Kiểm tra chặn đứng trước (d): người đã từ chối mình rồi chặn mình → `not_found`, không lộ.
+        Mỗi lần tra tăng `users.lookup_window.count`; vượt `emailLookupsPerHour` (100) → `429` trong phần còn lại của
+        cửa sổ 1 giờ (NFR-16). Email gửi trong body, không ghi log dạng đọc được (NFR-27).
+      x-business: [BIZ-03]
+      x-screens: [SCR-07.A1]
+      x-roles: [ACT-01]
+      x-nfr: [NFR-04, NFR-15, NFR-16, NFR-27]
+      x-errors: [VALIDATION_FAILED, EMAIL_INVALID, EMAIL_LOOKUP_RATE_LIMITED, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailLookupCreate'
+            example:
+              email: Binh.Tran@gmail.com
+      responses:
+        '200':
+          description: Kết quả tra
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailLookupResult'
+              examples:
+                found:
+                  summary: e — Tìm thấy
+                  value:
+                    result: found
+                    user:
+                      displayName: Bình Trần
+                      photoUrl: https://lh3.googleusercontent.com/a/xyz
+                notFound:
+                  summary: f — Không tìm thấy (mọi lý do giống hệt nhau)
+                  value:
+                    result: not_found
+                pendingSent:
+                  summary: c — Đang chờ phản hồi
+                  value:
+                    result: pending_sent
+                    requestId: fr_01HZX8
+                    user:
+                      displayName: Bình Trần
+                      photoUrl: https://lh3.googleusercontent.com/a/xyz
+                cooldown:
+                  summary: d — Bị từ chối chưa đủ 24h
+                  value:
+                    result: reject_cooldown
+                    retryAfter: '2026-11-13T02:15:00Z'
+                self:
+                  summary: a — Email của chính mình
+                  value:
+                    result: self
+                friends:
+                  summary: b — Đã là bạn
+                  value:
+                    result: already_friends
+                    user:
+                      uid: u_9Kd3Pq
+                      displayName: Bình Trần
+                      photoUrl: https://lh3.googleusercontent.com/a/xyz
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`EMAIL_INVALID` — email sai định dạng (BIZ-03 E1)'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+          description: '`EMAIL_LOOKUP_RATE_LIMITED` (NFR-16) — kèm header `Retry-After`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /friend-requests:
+    post:
+      tags: [FriendRequests]
+      operationId: createFriendRequest
+      summary: Gửi lời mời kết bạn trong platform (trường hợp e)
+      description: |
+        Nhận lại **email** (không nhận uid) và kiểm tra lại toàn bộ BR-05 trong transaction (FLOW-03 E3):
+        đã là bạn → `409 ALREADY_FRIENDS`; người kia vừa bật ẩn danh / có chặn / không còn hoạt động →
+        `404 FRIEND_TARGET_NOT_FOUND` (client hiện màn "Không tìm thấy" như bước 8, không lộ lý do — BR-04).
+        Tạo `friend_requests` (`channel = in_app`, `pending`) + thông báo `friend_request_received` cho người nhận (SUP-01).
+        Lời mời ngược chiều đang chờ không chặn việc gửi (BR-09). Không tính vào giới hạn tra email (Q-034).
+      x-business: [BIZ-03]
+      x-screens: [SCR-07.A2]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-01, SUP-03]
+      x-nfr: [NFR-04, NFR-15]
+      x-errors: [VALIDATION_FAILED, EMAIL_INVALID, CANNOT_INVITE_SELF, FRIEND_TARGET_NOT_FOUND, ALREADY_FRIENDS, FRIEND_REQUEST_ALREADY_PENDING, REJECT_COOLDOWN, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FriendRequestCreate'
+            example:
+              email: binh.tran@gmail.com
+      responses:
+        '201':
+          description: Đã tạo lời mời Đang chờ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendRequest'
+              example:
+                id: fr_01HZX8
+                fromUid: u_7Hq2Lx
+                toUid: u_9Kd3Pq
+                channel: in_app
+                status: pending
+                createdAt: '2026-11-12T03:20:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`FRIEND_TARGET_NOT_FOUND` (BR-04, BR-05) — hiển thị như "Không tìm thấy"'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ALREADY_FRIENDS` (BR-05) · `FRIEND_REQUEST_ALREADY_PENDING` (BR-08) · `REJECT_COOLDOWN` (BR-10, `details[0].retryAfter`)'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`EMAIL_INVALID` · `CANNOT_INVITE_SELF`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /friend-requests/{requestId}/withdraw:
+    post:
+      tags: [FriendRequests]
+      operationId: withdrawFriendRequest
+      summary: Thu hồi lời mời đã gửi
+      description: |
+        Chỉ người gửi, lời mời còn `pending` → `withdrawn`, `responded_at`, `expire_at = +30 ngày` (BR-08).
+        Trùng lúc người nhận vừa chấp nhận → chấp nhận thắng: `409 ALREADY_FRIENDS` (FLOW-03 E2, Q-029).
+      x-business: [BIZ-03]
+      x-screens: [SCR-07.A3, SCR-09.A5]
+      x-roles: [ACT-01]
+      x-errors: [FRIEND_REQUEST_NOT_FOUND, FRIEND_REQUEST_FORBIDDEN, FRIEND_REQUEST_NOT_PENDING, ALREADY_FRIENDS]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Lời mời đã thu hồi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendRequest'
+              example:
+                id: fr_01HZX8
+                fromUid: u_7Hq2Lx
+                toUid: u_9Kd3Pq
+                channel: in_app
+                status: withdrawn
+                createdAt: '2026-11-12T03:20:00Z'
+                respondedAt: '2026-11-12T05:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`FRIEND_REQUEST_FORBIDDEN` — không phải người gửi'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`FRIEND_REQUEST_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ALREADY_FRIENDS` (chấp nhận thắng) · `FRIEND_REQUEST_NOT_PENDING`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /friend-requests/{requestId}/accept:
+    post:
+      tags: [FriendRequests]
+      operationId: acceptFriendRequest
+      summary: Chấp nhận lời mời kết bạn
+      description: |
+        Chỉ người nhận, lời mời `pending`. Transaction: lời mời → `accepted`; tạo `friendships/{uidMin_uidMax}` (BR-09);
+        lời mời ngược chiều `pending` → `closed (became_friends)`; mọi phòng 2 người của cặp (`pair_key`) đang
+        `read_only` mà không còn chặn chiều nào → `read_only = false` (BR-13); thông báo `friend_request_accepted`
+        cho người gửi (BR-11, SUP-01). Link mời giữa hai người tự hết dùng được vì đã là bạn (SUP-07).
+      x-business: [BIZ-04]
+      x-screens: [SCR-02.A2, SCR-09.A2, SCR-10.A4]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-01, SUP-03, SUP-09]
+      x-nfr: [NFR-04]
+      x-errors: [FRIEND_REQUEST_NOT_FOUND, FRIEND_REQUEST_FORBIDDEN, FRIEND_REQUEST_NOT_PENDING]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Hai người đã là bạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendRequestAccepted'
+              example:
+                request:
+                  id: fr_01HZX8
+                  fromUid: u_7Hq2Lx
+                  toUid: u_9Kd3Pq
+                  channel: link
+                  status: accepted
+                  createdAt: '2026-11-12T03:20:00Z'
+                  respondedAt: '2026-11-12T03:25:00Z'
+                friendship:
+                  friendUid: u_7Hq2Lx
+                  since: '2026-11-12T03:25:00Z'
+                reopenedRoomIds: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`FRIEND_REQUEST_FORBIDDEN` — không phải người nhận'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`FRIEND_REQUEST_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`FRIEND_REQUEST_NOT_PENDING` — "Lời mời không còn hiệu lực" (đã thu hồi / đóng / người gửi xóa tài khoản — BIZ-04 E1)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /friend-requests/{requestId}/reject:
+    post:
+      tags: [FriendRequests]
+      operationId: rejectFriendRequest
+      summary: Từ chối lời mời kết bạn
+      description: |
+        Chỉ người nhận, lời mời `pending` → `rejected`, `responded_at` (mốc 24h của BR-10); thông báo
+        `friend_request_rejected` cho người gửi (BR-11). Nếu lời mời đã `closed (became_friends)` vì hai người đã thành bạn
+        qua lời mời ngược chiều → `409 ALREADY_FRIENDS` (`details[0].friendUid`), client hiện "Hai bạn đã là bạn bè" +
+        nút Hủy kết bạn (BR-09, FLOW-04 A1).
+      x-business: [BIZ-04]
+      x-screens: [SCR-02.A3, SCR-09.A3, SCR-10.A5]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-01, SUP-03]
+      x-nfr: [NFR-04]
+      x-errors: [FRIEND_REQUEST_NOT_FOUND, FRIEND_REQUEST_FORBIDDEN, FRIEND_REQUEST_NOT_PENDING, ALREADY_FRIENDS]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Đã từ chối
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendRequest'
+              example:
+                id: fr_01HZX8
+                fromUid: u_7Hq2Lx
+                toUid: u_9Kd3Pq
+                channel: in_app
+                status: rejected
+                createdAt: '2026-11-12T03:20:00Z'
+                respondedAt: '2026-11-12T03:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`FRIEND_REQUEST_FORBIDDEN` — không phải người nhận'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`FRIEND_REQUEST_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ALREADY_FRIENDS` (BR-09, lời từ chối vô hiệu) · `FRIEND_REQUEST_NOT_PENDING`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /invite-links:
+    post:
+      tags: [InviteLinks]
+      operationId: createInviteLink
+      summary: Tạo link mời cho một email (trường hợp f — Copy link mời)
+      description: |
+        Sinh token tự chứa `{v, inviterUid, emailNorm, exp = now + inviteTtlDays}` mã hóa AES-256-GCM (khóa Secret
+        Manager, ADR-08) → `/invite/{token}`. **Không ghi gì** (Q-033), không giới hạn số link, link cũ vẫn hiệu lực
+        (Q-034). Luôn thành công với email hợp lệ — kể cả khi thực chất có quan hệ chặn (BR-04); link đó sẽ không dùng được.
+        Không tính vào giới hạn tra email (NFR-16).
+      x-business: [BIZ-03]
+      x-screens: [SCR-07.A4]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-07]
+      x-nfr: [NFR-14, NFR-15]
+      x-errors: [VALIDATION_FAILED, EMAIL_INVALID, CANNOT_INVITE_SELF, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteLinkCreate'
+            example:
+              email: chi.le@gmail.com
+      responses:
+        '201':
+          description: Link mời
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLink'
+              example:
+                url: https://buddio.example.com/invite/AQ3k9vX0b1Zr7mQe4tYp2Wc8sLh6nJd5fGa0uR1iO3eT7yU9kB2xV4zN6mC8qS0wE
+                expiresAt: '2026-11-19T03:40:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`EMAIL_INVALID` · `CANNOT_INVITE_SELF` [ASSUMED → Q-044]'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /invite-links/open:
+    post:
+      tags: [InviteLinks]
+      operationId: openInviteLink
+      summary: Kiểm tra link mời & lấy / tạo lời mời
+      description: |
+        Token gửi trong body (không đặt trên URL API để không vào log). Xác thực **tùy chọn**:
+        - **Chưa đăng nhập** (không có header): chỉ giải mã + kiểm hạn (FLOW-05 bước 2) → `200 {status: login_required}`
+          hoặc `410 INVITE_LINK_INVALID`. Không trả bất kỳ thông tin người mời / email nào.
+        - **Đã đăng nhập**: email đăng nhập ≠ `emailNorm` → `403 INVITE_LINK_WRONG_ACCOUNT` (không hiện email — BR-07);
+          người mời đã xóa / đã là bạn / có chặn chiều nào → `410 INVITE_LINK_INVALID` (BR-06);
+          đã có lời mời `pending` từ người mời tới mình → trả lời mời đó (`created = false`, Q-029);
+          chưa có → tạo `friend_requests` (`channel = link`, `pending`) + thông báo `friend_request_received`
+          (`created = true`). Mở lại link còn hạn sau khi đã từ chối → tạo lời mời mới, **không** áp BR-10 (Q-036).
+        - Có ID token nhưng chưa có tài khoản → `403 CONSENT_REQUIRED` (client đưa sang SCR-01.A2 rồi quay lại).
+      x-business: [BIZ-05]
+      x-screens: [SCR-02.A0]
+      x-roles: [ACT-02, ACT-01]
+      x-supporting: [SUP-07, SUP-01, SUP-03]
+      x-nfr: [NFR-06, NFR-14, NFR-15]
+      x-errors: [VALIDATION_FAILED, INVITE_LINK_INVALID, INVITE_LINK_WRONG_ACCOUNT, CONSENT_REQUIRED]
+      security:
+        - {}
+        - firebaseIdToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteLinkOpen'
+            example:
+              token: AQ3k9vX0b1Zr7mQe4tYp2Wc8sLh6nJd5fGa0uR1iO3eT7yU9kB2xV4zN6mC8qS0wE
+      responses:
+        '200':
+          description: Link hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLinkOpenResult'
+              examples:
+                loginRequired:
+                  summary: Chưa đăng nhập
+                  value:
+                    status: login_required
+                pending:
+                  summary: Đã đăng nhập, có lời mời Đang chờ
+                  value:
+                    status: pending_request
+                    created: true
+                    request:
+                      id: fr_01J0AB
+                      fromUid: u_7Hq2Lx
+                      toUid: u_9Kd3Pq
+                      channel: link
+                      status: pending
+                      createdAt: '2026-11-12T03:22:00Z'
+                    inviter:
+                      uid: u_7Hq2Lx
+                      displayName: An Nguyễn
+                      photoUrl: https://lh3.googleusercontent.com/a/abc
+                      status: active
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`INVITE_LINK_WRONG_ACCOUNT` (BR-07) · `CONSENT_REQUIRED`'
+        '410':
+          $ref: '#/components/responses/Gone'
+          description: '`INVITE_LINK_INVALID` (BR-06) — "Link không còn hiệu lực, hãy xin người mời link mới"'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /friends/{friendUid}:
+    delete:
+      tags: [Friends]
+      operationId: deleteFriend
+      summary: Hủy kết bạn
+      description: |
+        Xóa `friendships/{uidMin_uidMax}` (Q-043); mọi phòng 2 người của cặp → `read_only = true` (BR-13).
+        Không thông báo cho bên kia (BR-12). Bên kia vừa hủy trước → `404 NOT_FRIENDS` ("Hai bạn không còn là bạn bè").
+      x-business: [BIZ-06]
+      x-screens: [SCR-08.A1]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-09]
+      x-nfr: [NFR-04]
+      x-errors: [NOT_FRIENDS, CONSENT_REQUIRED]
+      parameters:
+        - name: friendUid
+          in: path
+          required: true
+          description: uid người bạn cần hủy
+          schema:
+            $ref: '#/components/schemas/Uid'
+      responses:
+        '200':
+          description: Đã hủy kết bạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationChangeResult'
+              example:
+                readOnlyRoomIds: [room_5fT2]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`NOT_FRIENDS` (BR-12)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /blocks:
+    post:
+      tags: [Blocks]
+      operationId: createBlock
+      summary: Chặn một người (từ link mời, thành viên phòng, bạn bè, lời mời)
+      description: |
+        Transaction: tạo `blocks/{me}_{blockedUid}` (BR-14); xóa `friendships` nếu có (BR-12); mọi lời mời `pending`
+        hai chiều → `closed (blocked)`; phòng 2 người của cặp → `read_only = true` (BR-13). Link mời giữa hai bên tự
+        vô hiệu khi mở (BR-06). Không thông báo cho người bị chặn. Người kia đang chặn mình → vẫn chặn được (FLOW-07a A2).
+        [ASSUMED → Q-044] Chỉ chặn được người có liên hệ với mình (bạn bè, người chung phòng đang tham gia, hoặc có lời mời
+        giữa hai bên — kể cả lời mời qua link) để tránh dò uid; ngoài ra → `404 USER_NOT_FOUND`.
+      x-business: [BIZ-07]
+      x-screens: [SCR-02.A4, SCR-06.A7, SCR-08.A2, SCR-09.A4, SCR-10.A6]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-09]
+      x-nfr: [NFR-04]
+      x-errors: [VALIDATION_FAILED, CANNOT_BLOCK_SELF, USER_NOT_FOUND, ALREADY_BLOCKED, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockCreate'
+            example:
+              blockedUid: u_9Kd3Pq
+      responses:
+        '201':
+          description: Đã chặn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockCreated'
+              example:
+                block:
+                  blockedUid: u_9Kd3Pq
+                  createdAt: '2026-11-12T06:00:00Z'
+                unfriended: true
+                closedRequestIds: [fr_01HZX8]
+                readOnlyRoomIds: [room_5fT2]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`USER_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ALREADY_BLOCKED` (BR-14, FLOW-07a A1)'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`CANNOT_BLOCK_SELF`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /blocks/{blockedUid}:
+    delete:
+      tags: [Blocks]
+      operationId: deleteBlock
+      summary: Bỏ chặn
+      description: |
+        Xóa `blocks/{me}_{blockedUid}`. Không tự kết bạn lại, không thông báo (BR-14). Phòng 2 người cũ vẫn chỉ đọc
+        cho tới khi kết bạn lại (BR-13).
+      x-business: [BIZ-07]
+      x-screens: [SCR-12.A1]
+      x-roles: [ACT-01]
+      x-errors: [BLOCK_NOT_FOUND, CONSENT_REQUIRED]
+      parameters:
+        - name: blockedUid
+          in: path
+          required: true
+          description: uid người đang bị mình chặn
+          schema:
+            $ref: '#/components/schemas/Uid'
+      responses:
+        '204':
+          description: Đã bỏ chặn
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`BLOCK_NOT_FOUND`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms:
+    post:
+      tags: [Rooms]
+      operationId: createRoom
+      summary: Tạo phòng chat
+      description: |
+        Kiểm: 1–49 người, tất cả đang là bạn của người tạo (BR-15, BR-18); `retention` + `ttlDays`
+        (∈ `ttlDaysOptions` khi `short`, bỏ trống khi `long` — BR-16). Transaction: `rooms` (`host_uid = me`, BR-17),
+        `members` cho host + từng người, tin hệ thống `room_created` (BR-24), thông báo `room_member_added` cho người được
+        thêm (SUP-02), `room_access` ở RTDB. Đã có phòng khác cùng người vẫn tạo mới (Q-002).
+        Người không còn là bạn → `422 MEMBERS_NOT_FRIENDS` với `details[].uid` để client bỏ khỏi danh sách chọn (Q-037).
+      x-business: [BIZ-08]
+      x-screens: [SCR-04.A1]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-02, SUP-03, SUP-04]
+      x-nfr: [NFR-04, NFR-08]
+      x-errors: [VALIDATION_FAILED, MEMBERS_NOT_FRIENDS, ROOM_FULL, ROOM_TTL_INVALID, ROOM_NAME_TOO_LONG, CONSENT_REQUIRED]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomCreate'
+            examples:
+              short:
+                summary: Phòng ngắn hạn 1 tuần
+                value:
+                  memberUids: [u_9Kd3Pq, u_2Mn8Rt]
+                  name: Hội đánh cờ
+                  retention: short
+                  ttlDays: 7
+              long:
+                summary: Phòng 1-1 lâu dài, không tên
+                value:
+                  memberUids: [u_9Kd3Pq]
+                  retention: long
+      responses:
+        '201':
+          description: Phòng mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+              example:
+                id: room_8aQ1
+                name: Hội đánh cờ
+                hostUid: u_7Hq2Lx
+                retention: short
+                ttlDays: 7
+                status: active
+                memberUids: [u_7Hq2Lx, u_9Kd3Pq, u_2Mn8Rt]
+                memberCount: 3
+                readOnly: false
+                lastMessage:
+                  id: msg_sys_001
+                  kind: system
+                  textPreview: null
+                  imageCount: 0
+                  status: sent
+                  createdAt: '2026-11-12T07:00:00Z'
+                  expireAt: '2026-11-19T07:00:00Z'
+                lastMessageAt: '2026-11-12T07:00:00Z'
+                createdBy: u_7Hq2Lx
+                createdAt: '2026-11-12T07:00:00Z'
+                updatedAt: '2026-11-12T07:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ROOM_FULL` (BR-15) — vượt `maxRoomMembers`'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`MEMBERS_NOT_FRIENDS` (BR-18) · `ROOM_TTL_INVALID` (BR-16) · `ROOM_NAME_TOO_LONG` (Q-037)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}:
+    patch:
+      tags: [Rooms]
+      operationId: updateRoom
+      summary: Sửa tên phòng (host)
+      description: |
+        Chỉ host (BR-18). Chỉ sửa được `name`; `retention`, `ttlDays` không đổi được (BR-16 — field lạ → `400`).
+        `name = null` hoặc chuỗi rỗng sau trim → phòng hiển thị tên thành viên (Q-012). Tạo tin hệ thống
+        `room_renamed` (BR-24) và cập nhật `last_message` (SUP-04).
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A1]
+      x-roles: [ACT-03]
+      x-supporting: [SUP-04, SUP-09]
+      x-nfr: [NFR-04, NFR-13]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, NOT_ROOM_HOST, ROOM_NAME_TOO_LONG]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomUpdate'
+            example:
+              name: Hội đánh cờ cuối tuần
+      responses:
+        '200':
+          description: Phòng sau cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` (BR-20) · `NOT_ROOM_HOST` (BR-18)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`ROOM_NAME_TOO_LONG` (Q-037)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Rooms]
+      operationId: deleteRoom
+      summary: Giải tán phòng (host)
+      description: |
+        Chỉ host (BR-18, BR-19). Transaction: `rooms.status = deleted`, `deleted_at`; thông báo `room_disbanded`
+        (giữ `room_name` — Q-037) cho mọi thành viên khác (SUP-02); xóa `room_access`. Đẩy task `purgeRoom` xóa tin,
+        thành viên, ảnh `rooms/{roomId}/` (ADR-11). Client đang mở phòng tự đóng qua listener (SUP-09).
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A6]
+      x-roles: [ACT-03]
+      x-supporting: [SUP-02, SUP-03, SUP-08, SUP-09]
+      x-nfr: [NFR-13, NFR-19]
+      x-errors: [ROOM_NOT_FOUND, NOT_ROOM_MEMBER, NOT_ROOM_HOST]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '202':
+          description: Phòng đã ở trạng thái Đã xóa; dọn dữ liệu chạy nền
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomDeleted'
+              example:
+                id: room_8aQ1
+                status: deleted
+                deletedAt: '2026-11-12T09:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` · `NOT_ROOM_HOST` (BR-18)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/members:
+    post:
+      tags: [Rooms]
+      operationId: addRoomMembers
+      summary: Thêm thành viên (host, chọn từ bạn của host)
+      description: |
+        Chỉ host. Từng người phải đang là bạn **của host** (BR-18), chưa ở trong phòng, tổng ≤ `maxRoomMembers` (BR-15).
+        Người đã rời / bị kick được thêm lại = lần tham gia mới (ghi đè `members/{uid}`, `joined_at` mới — BR-20).
+        Tin hệ thống `member_added` cho từng người (BR-24), thông báo `room_member_added` (SUP-02), `room_access` (RTDB).
+        Phòng 2 người đang chỉ đọc thêm được người; khi ≥ 3 người → `read_only = false` (BR-13). Không cần người được
+        thêm đồng ý (Q-029). Phòng đang chỉ đọc vẫn thêm được (BIZ-09 ngoại lệ).
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A2]
+      x-roles: [ACT-03]
+      x-supporting: [SUP-02, SUP-03, SUP-09]
+      x-nfr: [NFR-04, NFR-13]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, NOT_ROOM_HOST, ROOM_FULL, MEMBERS_NOT_FRIENDS, MEMBER_ALREADY_IN_ROOM]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomMembersAdd'
+            example:
+              uids: [u_4Pz6Wy]
+      responses:
+        '200':
+          description: Phòng sau khi thêm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` · `NOT_ROOM_HOST` (BR-18)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ROOM_FULL` (BR-15, `details[0].remainingSlots`) · `MEMBER_ALREADY_IN_ROOM`'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`MEMBERS_NOT_FRIENDS` (BR-18, `details[].uid`)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/members/{memberUid}/kick:
+    post:
+      tags: [Rooms]
+      operationId: kickRoomMember
+      summary: Kick thành viên (host)
+      description: |
+        Chỉ host; không tự kick (BR-17). Người đó còn `active` → `members.status = kicked`, `left_at`; bỏ khỏi
+        `member_uids`; tin hệ thống `member_kicked` (BR-24); thông báo `room_member_kicked` (SUP-02); xóa `room_access`.
+        Còn đúng 2 người không là bạn / có chặn → `read_only = true` (BR-13). Chỉ còn host → phòng vẫn tồn tại (Q-018).
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A3]
+      x-roles: [ACT-03]
+      x-supporting: [SUP-02, SUP-03, SUP-09]
+      x-nfr: [NFR-04, NFR-13]
+      x-errors: [ROOM_NOT_FOUND, NOT_ROOM_MEMBER, NOT_ROOM_HOST, CANNOT_TARGET_SELF, MEMBER_NOT_IN_ROOM]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/MemberUid'
+      responses:
+        '200':
+          description: Phòng sau khi kick
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` · `NOT_ROOM_HOST` (BR-18)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`MEMBER_NOT_IN_ROOM` — "Người này không còn trong phòng"'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`CANNOT_TARGET_SELF`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/transfer-host:
+    post:
+      tags: [Rooms]
+      operationId: transferRoomHost
+      summary: Chuyển quyền host (host)
+      description: |
+        Chỉ host; người nhận phải là thành viên `active` khác mình. Đổi `rooms.host_uid`, `members.role` hai người
+        (luôn đúng 1 host — BR-17); tin hệ thống `host_transferred` (BR-24); thông báo `room_host_received` (SUP-02).
+        Không cần người nhận đồng ý (Q-029).
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A4]
+      x-roles: [ACT-03]
+      x-supporting: [SUP-02, SUP-03, SUP-09]
+      x-nfr: [NFR-04, NFR-13]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, NOT_ROOM_HOST, CANNOT_TARGET_SELF, MEMBER_NOT_IN_ROOM]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostTransfer'
+            example:
+              newHostUid: u_9Kd3Pq
+      responses:
+        '200':
+          description: Phòng sau khi chuyển quyền
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` · `NOT_ROOM_HOST` (BR-18)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`MEMBER_NOT_IN_ROOM` — "Người này không còn trong phòng"'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`CANNOT_TARGET_SELF`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/leave:
+    post:
+      tags: [Rooms]
+      operationId: leaveRoom
+      summary: Rời phòng (host chọn người nhận quyền)
+      description: |
+        - Thành viên thường: `members.status = left`, `left_at`; tin hệ thống `member_left` (BR-24); xóa `room_access`;
+          còn đúng 2 người không là bạn / có chặn → `read_only = true` (BR-13).
+        - Host còn người khác: bắt buộc `newHostUid` (thành viên `active`) → chuyển quyền như `transferRoomHost`
+          (thông báo SUP-02) rồi rời (BR-19, Q-029). Thiếu → `422 HOST_TRANSFER_REQUIRED`.
+        - Host là người cuối cùng: rời = phòng `deleted` → đẩy `purgeRoom` (BR-19); `roomDeleted = true`.
+          Xác nhận cảnh báo là việc của UI.
+      x-business: [BIZ-09]
+      x-screens: [SCR-06.A5]
+      x-roles: [ACT-03, ACT-04]
+      x-supporting: [SUP-02, SUP-03, SUP-08, SUP-09]
+      x-nfr: [NFR-04, NFR-19]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, HOST_TRANSFER_REQUIRED, CANNOT_TARGET_SELF, MEMBER_NOT_IN_ROOM]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomLeave'
+            example:
+              newHostUid: u_9Kd3Pq
+      responses:
+        '200':
+          description: Đã rời phòng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomLeft'
+              examples:
+                hostLeft:
+                  summary: Host rời, chuyển quyền
+                  value:
+                    roomId: room_8aQ1
+                    roomDeleted: false
+                    newHostUid: u_9Kd3Pq
+                lastMember:
+                  summary: Người cuối rời → phòng bị xóa
+                  value:
+                    roomId: room_8aQ1
+                    roomDeleted: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` (BR-20)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`MEMBER_NOT_IN_ROOM` — người nhận quyền vừa rời'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`HOST_TRANSFER_REQUIRED` (BR-19) · `CANNOT_TARGET_SELF`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/read:
+    post:
+      tags: [Messages]
+      operationId: markRoomAsRead
+      summary: Đánh dấu đã xem tới tin mới nhất đang hiện
+      description: |
+        Cập nhật `members/{me}.last_read_at` = max(giá trị hiện tại, `created_at` của `upToMessageId`); thiếu
+        `upToMessageId` → thời điểm server hiện tại. Chỉ tăng, không lùi. Dùng cho "Đã xem" (BR-26) và số chưa đọc
+        (SUP-04). Phòng chỉ đọc vẫn đánh dấu được. [ASSUMED → Q-044] Client gọi khi mở phòng và khi có tin mới hiện trên màn
+        (debounce ~1 giây) để giữ NFR-02 mà không tốn ghi.
+      x-business: [BIZ-10]
+      x-screens: [SCR-05.A2]
+      x-roles: [ACT-03, ACT-04]
+      x-supporting: [SUP-04, SUP-09]
+      x-nfr: [NFR-02]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, MESSAGE_NOT_FOUND]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadMarkerUpdate'
+            example:
+              upToMessageId: 01JCZ4M8Q7T2K9X3V5B6N8R0WA
+      responses:
+        '200':
+          description: Mốc đã xem mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadMarker'
+              example:
+                roomId: room_8aQ1
+                lastReadAt: '2026-11-12T07:05:12Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` (BR-20)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND` · `MESSAGE_NOT_FOUND`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/messages/{messageId}:
+    put:
+      tags: [Messages]
+      operationId: createMessage
+      summary: Gửi tin (chữ / ảnh) — gửi lại idempotent cùng messageId
+      description: |
+        Client sinh `messageId` trước khi gửi (NFR-10). `PUT` idempotent: đã có tin cùng id, cùng người gửi, cùng nội dung
+        → `200` trả tin đó (gửi lại sau lỗi mạng, SCR-05.A7); cùng id nhưng khác người gửi / nội dung → `409 MESSAGE_ID_CONFLICT`.
+
+        Kiểm tra (transaction): thành viên `active` (BR-20); phòng không `read_only` (BR-13 — kể cả khi vừa chuyển chỉ
+        đọc lúc đang soạn, FLOW-10a E4); có chữ hoặc ảnh, chữ ≤ `maxMessageChars`, ≤ `maxImagesPerMessage` ảnh, tổng
+        ≤ `maxImageBytesPerMessage`, `contentType` `image/*` (BR-21 — đọc size / contentType thật từ metadata Storage,
+        không tin client). Ảnh tạm phải nằm dưới `uploads/{uid người gửi}/` (ADR-10).
+
+        Ghi: `messages/{messageId}` (`kind = user`, `expire_at = created_at + ttl_days` khi phòng `short` — BR-16),
+        chuyển ảnh sang `rooms/{roomId}/messages/{messageId}/` (đặt `customTime = expire_at` khi `short` — ADR-09),
+        `rooms.last_message*` (SUP-04), `members/{me}.last_read_at`. Không tạo thông báo (SUP-03).
+      x-business: [BIZ-10]
+      x-screens: [SCR-05.A6, SCR-05.A7]
+      x-roles: [ACT-03, ACT-04]
+      x-supporting: [SUP-04, SUP-08, SUP-09]
+      x-nfr: [NFR-01, NFR-05, NFR-10, NFR-12, NFR-13]
+      x-errors: [VALIDATION_FAILED, ROOM_NOT_FOUND, NOT_ROOM_MEMBER, ROOM_READ_ONLY, MESSAGE_EMPTY, MESSAGE_TOO_LONG, TOO_MANY_IMAGES, IMAGES_TOO_LARGE, INVALID_IMAGE_TYPE, UPLOAD_NOT_FOUND, MESSAGE_ID_CONFLICT]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+            examples:
+              text:
+                summary: Tin chữ
+                value:
+                  text: Tối nay 9h vào chơi nhé!
+              images:
+                summary: Tin chữ + 2 ảnh
+                value:
+                  text: Ảnh hôm qua nè
+                  images:
+                    - uploadPath: uploads/u_7Hq2Lx/3f2b9c1e-6a1d-4c55-9e0e-2d1a7b8c9f00
+                      width: 1280
+                      height: 960
+                    - uploadPath: uploads/u_7Hq2Lx/7a1c2d3e-4b5f-4061-8a9b-0c1d2e3f4a5b
+                      width: 1080
+                      height: 1920
+      responses:
+        '201':
+          description: Đã gửi (tạo mới)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                id: 01JCZ4M8Q7T2K9X3V5B6N8R0WA
+                roomId: room_8aQ1
+                kind: user
+                senderUid: u_7Hq2Lx
+                text: Ảnh hôm qua nè
+                images:
+                  - index: 0
+                    contentType: image/jpeg
+                    sizeBytes: 482113
+                    width: 1280
+                    height: 960
+                  - index: 1
+                    contentType: image/png
+                    sizeBytes: 1203321
+                    width: 1080
+                    height: 1920
+                status: sent
+                createdAt: '2026-11-12T07:05:12Z'
+                expireAt: '2026-11-19T07:05:12Z'
+        '200':
+          description: Gửi lại — tin đã tồn tại (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` (BR-20)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`ROOM_READ_ONLY` (BR-13) · `MESSAGE_ID_CONFLICT` (NFR-10)'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+          description: '`MESSAGE_EMPTY` · `MESSAGE_TOO_LONG` · `TOO_MANY_IMAGES` · `IMAGES_TOO_LARGE` · `INVALID_IMAGE_TYPE` (BR-21) · `UPLOAD_NOT_FOUND` (ADR-10)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/messages/{messageId}/recall:
+    post:
+      tags: [Messages]
+      operationId: recallMessage
+      summary: Thu hồi tin của mình
+      description: |
+        Chỉ người gửi (BR-22), là thành viên `active` [ASSUMED → Q-044]; được cả khi phòng đang chỉ đọc (Q-035).
+        `status = recalled`, `recalled_at`, `text = null`, `images = []`; xóa ngay file ảnh trong Storage (SUP-08,
+        ADR-09); là tin cuối → cập nhật `rooms.last_message.status` (SUP-04). Đã thu hồi → `200` (idempotent).
+        Tin đã hết hạn / phòng đã xóa → `404` (FLOW-10b E1).
+      x-business: [BIZ-10]
+      x-screens: [SCR-05.A8]
+      x-roles: [ACT-03, ACT-04]
+      x-supporting: [SUP-04, SUP-08, SUP-09]
+      x-nfr: [NFR-02, NFR-19]
+      x-errors: [ROOM_NOT_FOUND, NOT_ROOM_MEMBER, MESSAGE_NOT_FOUND, NOT_MESSAGE_SENDER]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Tin đã thu hồi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                id: 01JCZ4M8Q7T2K9X3V5B6N8R0WA
+                roomId: room_8aQ1
+                kind: user
+                senderUid: u_7Hq2Lx
+                text: null
+                images: []
+                status: recalled
+                createdAt: '2026-11-12T07:05:12Z'
+                recalledAt: '2026-11-12T07:06:00Z'
+                expireAt: '2026-11-19T07:05:12Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` · `NOT_MESSAGE_SENDER` (BR-22)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND` · `MESSAGE_NOT_FOUND`'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /rooms/{roomId}/messages/{messageId}/image-urls:
+    get:
+      tags: [Messages]
+      operationId: listMessageImageUrls
+      summary: Lấy link xem ảnh của một tin
+      description: |
+        Chỉ thành viên `active` (NFR-13). Cấp signed URL đọc từng ảnh, hết hạn tại `min(now + 1 giờ, expire_at)`
+        (ADR-09, ADR-10). Tin đã quá hạn → `404`; tin đã thu hồi → `409 MESSAGE_RECALLED`. Không phân trang (≤ 10 ảnh).
+      x-business: [BIZ-10]
+      x-screens: [SCR-05.A9]
+      x-roles: [ACT-03, ACT-04]
+      x-supporting: [SUP-08]
+      x-nfr: [NFR-13]
+      x-errors: [ROOM_NOT_FOUND, NOT_ROOM_MEMBER, MESSAGE_NOT_FOUND, MESSAGE_RECALLED]
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Link xem ảnh
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageImageUrls'
+              example:
+                messageId: 01JCZ4M8Q7T2K9X3V5B6N8R0WA
+                expiresAt: '2026-11-12T08:05:12Z'
+                items:
+                  - index: 0
+                    url: https://storage.googleapis.com/buddio-prod/rooms/room_8aQ1/messages/01JCZ4M8Q7T2K9X3V5B6N8R0WA/0.jpg?X-Goog-Signature=abc
+                    contentType: image/jpeg
+                    width: 1280
+                    height: 960
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: '`NOT_ROOM_MEMBER` (BR-20, NFR-13)'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`ROOM_NOT_FOUND` · `MESSAGE_NOT_FOUND`'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: '`MESSAGE_RECALLED` (BR-22)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /notifications/{notificationId}:
+    patch:
+      tags: [Notifications]
+      operationId: updateNotification
+      summary: Đánh dấu một thông báo đã đọc
+      description: Chỉ chủ thông báo. `read = true`, `read_at = now`; đã đọc rồi → `200` (idempotent). Không cho đặt lại chưa đọc.
+      x-business: []
+      x-screens: [SCR-10.A1]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-03]
+      x-errors: [VALIDATION_FAILED, NOTIFICATION_NOT_FOUND]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationUpdate'
+            example:
+              read: true
+      responses:
+        '200':
+          description: Thông báo sau cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+              example:
+                id: nt_33aa
+                type: friend_request_received
+                actorUid: u_7Hq2Lx
+                refType: friend_request
+                refId: fr_01HZX8
+                read: true
+                readAt: '2026-11-12T08:00:00Z'
+                createdAt: '2026-11-12T03:20:00Z'
+                expireAt: '2026-12-12T03:20:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: '`NOTIFICATION_NOT_FOUND` (không tồn tại / đã quá 30 ngày — NFR-21)'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      operationId: markAllNotificationsAsRead
+      summary: Đánh dấu tất cả thông báo đã đọc
+      description: |
+        Batch cập nhật mọi thông báo `read = false` của tôi có `created_at ≤ upTo` (mặc định: now) → tránh đánh dấu
+        thông báo tới sau lúc người dùng bấm [ASSUMED → Q-044]. Chia lô ≤ 500 ghi.
+      x-business: []
+      x-screens: [SCR-10.A2]
+      x-roles: [ACT-01]
+      x-supporting: [SUP-03]
+      x-errors: [VALIDATION_FAILED]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationReadAll'
+            example:
+              upTo: '2026-11-12T08:00:00Z'
+      responses:
+        '200':
+          description: Số thông báo đã cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationReadAllResult'
+              example:
+                updatedCount: 4
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Uptime check
+      description: Dùng cho Cloud Monitoring uptime check (ADR-12, NFR-09, NFR-26). Không cần xác thực, không trả dữ liệu nghiệp vụ.
+      x-business: []
+      x-screens: []
+      x-roles: []
+      x-nfr: [NFR-09, NFR-26]
+      security: []
+      responses:
+        '200':
+          description: Hệ thống hoạt động
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    firebaseIdToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase ID token (Google provider) lấy từ Firebase Auth client: `Authorization: Bearer <idToken>`.
+        Server `verifyIdToken(token, checkRevoked = true)` + kiểm phiên 30 ngày (ADR-06, NFR-11).
+
+  parameters:
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      description: id phòng (`rooms/{roomId}`)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      description: id tin do client sinh trước khi gửi (NFR-10). [ASSUMED → Q-044] ULID / UUID / Firestore auto-id.
+      schema:
+        $ref: '#/components/schemas/MessageId'
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      description: id lời mời kết bạn (`friend_requests/{id}`)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+    MemberUid:
+      name: memberUid
+      in: path
+      required: true
+      description: uid thành viên trong phòng
+      schema:
+        $ref: '#/components/schemas/Uid'
+
+  responses:
+    BadRequest:
+      description: '`VALIDATION_FAILED` — request sai cấu trúc / kiểu'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_FAILED
+            message: Dữ liệu gửi lên không hợp lệ
+            details:
+              - field: retention
+                code: invalid_enum_value
+                message: Giá trị phải là short hoặc long
+    Unauthorized:
+      description: '`UNAUTHENTICATED` · `TOKEN_REVOKED` · `SESSION_EXPIRED` (NFR-11)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: SESSION_EXPIRED
+            message: Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại
+    Forbidden:
+      description: Không có quyền — `CONSENT_REQUIRED` hoặc mã cụ thể của operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_ROOM_HOST
+            message: Bạn không có quyền thực hiện thao tác này
+    NotFound:
+      description: Không tìm thấy đối tượng
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: ROOM_NOT_FOUND
+            message: Phòng không còn tồn tại
+    Conflict:
+      description: Xung đột trạng thái nghiệp vụ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            readOnly:
+              summary: BR-13
+              value:
+                code: ROOM_READ_ONLY
+                message: Phòng đang ở chế độ chỉ đọc
+            cooldown:
+              summary: BR-10
+              value:
+                code: REJECT_COOLDOWN
+                message: Chưa thể gửi lại, thử lại sau
+                details:
+                  - code: retry_after
+                    retryAfter: '2026-11-13T02:15:00Z'
+            roomFull:
+              summary: BR-15
+              value:
+                code: ROOM_FULL
+                message: Phòng đã đủ 50 thành viên
+                details:
+                  - code: remaining_slots
+                    remainingSlots: 0
+    Gone:
+      description: Đối tượng không còn hiệu lực
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INVITE_LINK_INVALID
+            message: Link không còn hiệu lực, hãy xin người mời link mới
+    UnprocessableEntity:
+      description: Vi phạm quy tắc nghiệp vụ về dữ liệu
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFriends:
+              summary: BR-18
+              value:
+                code: MEMBERS_NOT_FRIENDS
+                message: Người này không còn trong danh sách bạn bè
+                details:
+                  - field: memberUids
+                    code: not_friend
+                    uid: u_2Mn8Rt
+            tooLarge:
+              summary: BR-21
+              value:
+                code: IMAGES_TOO_LARGE
+                message: Tổng dung lượng ảnh vượt 10MB
+    TooManyRequests:
+      description: Vượt giới hạn tần suất
+      headers:
+        Retry-After:
+          description: Số giây cần chờ
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: EMAIL_LOOKUP_RATE_LIMITED
+            message: Bạn đã tra quá nhiều email, thử lại sau
+            details:
+              - code: retry_after
+                retryAfter: '2026-11-12T09:00:00Z'
+    InternalError:
+      description: '`INTERNAL_ERROR`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: Có lỗi xảy ra, vui lòng thử lại
+
+  schemas:
+    # ---------- Chung ----------
+    Uid:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: uid Firebase Auth
+    MessageId:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{16,40}$'
+      description: id tin do client sinh (NFR-10)
+    Timestamp:
+      type: string
+      format: date-time
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+      description: Server chuẩn hóa lowercase + trim trước khi so khớp
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Mã lỗi máy đọc (xem bảng mã lỗi ở `info.description`)
+          enum:
+            - VALIDATION_FAILED
+            - UNAUTHENTICATED
+            - TOKEN_REVOKED
+            - SESSION_EXPIRED
+            - CONSENT_REQUIRED
+            - DISPLAY_NAME_INVALID
+            - EMAIL_INVALID
+            - EMAIL_LOOKUP_RATE_LIMITED
+            - CANNOT_INVITE_SELF
+            - FRIEND_TARGET_NOT_FOUND
+            - ALREADY_FRIENDS
+            - FRIEND_REQUEST_ALREADY_PENDING
+            - REJECT_COOLDOWN
+            - FRIEND_REQUEST_NOT_FOUND
+            - FRIEND_REQUEST_FORBIDDEN
+            - FRIEND_REQUEST_NOT_PENDING
+            - INVITE_LINK_INVALID
+            - INVITE_LINK_WRONG_ACCOUNT
+            - NOT_FRIENDS
+            - USER_NOT_FOUND
+            - CANNOT_BLOCK_SELF
+            - ALREADY_BLOCKED
+            - BLOCK_NOT_FOUND
+            - ROOM_NOT_FOUND
+            - NOT_ROOM_MEMBER
+            - NOT_ROOM_HOST
+            - ROOM_FULL
+            - MEMBERS_NOT_FRIENDS
+            - ROOM_TTL_INVALID
+            - ROOM_NAME_TOO_LONG
+            - MEMBER_ALREADY_IN_ROOM
+            - MEMBER_NOT_IN_ROOM
+            - CANNOT_TARGET_SELF
+            - HOST_TRANSFER_REQUIRED
+            - ROOM_READ_ONLY
+            - MESSAGE_EMPTY
+            - MESSAGE_TOO_LONG
+            - TOO_MANY_IMAGES
+            - IMAGES_TOO_LARGE
+            - INVALID_IMAGE_TYPE
+            - UPLOAD_NOT_FOUND
+            - MESSAGE_ID_CONFLICT
+            - MESSAGE_NOT_FOUND
+            - NOT_MESSAGE_SENDER
+            - MESSAGE_RECALLED
+            - NOTIFICATION_NOT_FOUND
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Thông điệp tiếng Việt để hiển thị (NFR-24); không chứa email / nội dung tin (NFR-27)
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      description: Chi tiết lỗi; ngoài các field dưới có thể có field theo mã lỗi (`uid`, `retryAfter`, `remainingSlots`, `friendUid`)
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        uid:
+          $ref: '#/components/schemas/Uid'
+        friendUid:
+          $ref: '#/components/schemas/Uid'
+        retryAfter:
+          $ref: '#/components/schemas/Timestamp'
+        remainingSlots:
+          type: integer
+          minimum: 0
+      additionalProperties: true
+
+    # ---------- Tài khoản ----------
+    Me:
+      type: object
+      description: Hồ sơ của chính tôi (TBL-01 + TBL-02, bỏ cột nội bộ)
+      required: [uid, email, displayName, anonymous, showOnline, status, consentAt, createdAt]
+      properties:
+        uid:
+          $ref: '#/components/schemas/Uid'
+        email:
+          $ref: '#/components/schemas/Email'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        photoUrl:
+          type: [string, 'null']
+          format: uri
+        anonymous:
+          type: boolean
+          description: Chế độ ẩn danh (BR-02), mặc định true
+        showOnline:
+          type: boolean
+          description: Hiển thị online (BR-25), mặc định true
+        status:
+          type: string
+          enum: [active, deleted]
+        consentAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+    MeUpdate:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Trim trước khi kiểm; trống / > 50 ký tự → `DISPLAY_NAME_INVALID` (BR-29)
+        anonymous:
+          type: boolean
+        showOnline:
+          type: boolean
+    Limits:
+      type: object
+      description: Giới hạn nghiệp vụ chỉnh được (TBL-11, NFR-08)
+      required: [maxRoomMembers, maxImagesPerMessage, maxImageBytesPerMessage, ttlDaysOptions, inviteTtlDays, notificationTtlDays, emailLookupsPerHour, rejectCooldownHours, maxMessageChars, displayNameMax, roomNameMax, sessionIdleDays]
+      properties:
+        maxRoomMembers:
+          type: integer
+          minimum: 2
+        maxImagesPerMessage:
+          type: integer
+          minimum: 1
+        maxImageBytesPerMessage:
+          type: integer
+          minimum: 1
+        ttlDaysOptions:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        inviteTtlDays:
+          type: integer
+        notificationTtlDays:
+          type: integer
+        emailLookupsPerHour:
+          type: integer
+        rejectCooldownHours:
+          type: integer
+        maxMessageChars:
+          type: integer
+        displayNameMax:
+          type: integer
+        roomNameMax:
+          type: integer
+        sessionIdleDays:
+          type: integer
+    MeWithLimits:
+      type: object
+      required: [me, limits]
+      properties:
+        me:
+          $ref: '#/components/schemas/Me'
+        limits:
+          $ref: '#/components/schemas/Limits'
+    SessionResult:
+      type: object
+      required: [accountStatus]
+      properties:
+        accountStatus:
+          type: string
+          enum: [active, consent_required]
+        me:
+          $ref: '#/components/schemas/Me'
+        limits:
+          $ref: '#/components/schemas/Limits'
+        googleProfile:
+          type: object
+          description: Chỉ khi `consent_required` — thông tin Google để hiện màn đồng ý chính sách
+          properties:
+            email:
+              $ref: '#/components/schemas/Email'
+            displayName:
+              type: [string, 'null']
+            photoUrl:
+              type: [string, 'null']
+              format: uri
+        policyVersion:
+          type: string
+          description: Phiên bản chính sách quyền riêng tư cần đồng ý (chỉ khi `consent_required`) [ASSUMED → Q-044]
+    AccountCreate:
+      type: object
+      required: [acceptPrivacyPolicy, policyVersion]
+      additionalProperties: false
+      properties:
+        acceptPrivacyPolicy:
+          type: boolean
+          const: true
+          description: Phải là true (NFR-17)
+        policyVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Phiên bản chính sách người dùng đã đọc [ASSUMED → Q-044]
+    AccountDeleted:
+      type: object
+      required: [status, deletedAt]
+      properties:
+        status:
+          type: string
+          const: deleted
+        deletedAt:
+          $ref: '#/components/schemas/Timestamp'
+
+    # ---------- Người dùng (công khai) ----------
+    UserSummary:
+      type: object
+      description: Phần công khai (TBL-02) — bạn bè / người chung phòng / người mời. `status = deleted` → hiển thị "Người dùng đã xóa" (BR-28)
+      required: [uid, displayName, status]
+      properties:
+        uid:
+          $ref: '#/components/schemas/Uid'
+        displayName:
+          type: [string, 'null']
+        photoUrl:
+          type: [string, 'null']
+          format: uri
+        status:
+          type: string
+          enum: [active, deleted]
+    LookupUser:
+      type: object
+      description: Người được tìm thấy khi tra email — chỉ tên & ảnh (BIZ-03 e)
+      required: [displayName]
+      properties:
+        uid:
+          $ref: '#/components/schemas/Uid'
+          description: Chỉ có khi `already_friends`
+        displayName:
+          type: string
+        photoUrl:
+          type: [string, 'null']
+          format: uri
+
+    # ---------- Tra email / lời mời ----------
+    EmailLookupCreate:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+    EmailLookupResult:
+      type: object
+      description: |
+        Kết quả tra email (BIZ-03 a–f). Với `not_found` body **chỉ có** `result` — giống hệt nhau cho mọi lý do (BR-04).
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [self, already_friends, pending_sent, reject_cooldown, found, not_found]
+          description: |
+            `self` (a) · `already_friends` (b) · `pending_sent` (c, kèm `requestId` để Thu hồi) ·
+            `reject_cooldown` (d, kèm `retryAfter`) · `found` (e, kèm `user`) · `not_found` (f → Copy link mời)
+        user:
+          $ref: '#/components/schemas/LookupUser'
+        requestId:
+          type: string
+          description: Chỉ khi `pending_sent`
+        retryAfter:
+          $ref: '#/components/schemas/Timestamp'
+          description: Chỉ khi `reject_cooldown` — `responded_at + rejectCooldownHours` (BR-10)
+    FriendRequestCreate:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+          description: Email đã tra ở bước trước; server kiểm lại BR-05 (FLOW-03 E3)
+    FriendRequest:
+      type: object
+      description: Lời mời kết bạn (TBL-04, bỏ `expire_at`)
+      required: [id, fromUid, toUid, channel, status, createdAt]
+      properties:
+        id:
+          type: string
+        fromUid:
+          $ref: '#/components/schemas/Uid'
+        toUid:
+          $ref: '#/components/schemas/Uid'
+        channel:
+          type: string
+          enum: [in_app, link]
+        status:
+          type: string
+          enum: [pending, accepted, rejected, withdrawn, closed]
+        closedReason:
+          type: [string, 'null']
+          enum: [became_friends, blocked, account_deleted, null]
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        respondedAt:
+          type: [string, 'null']
+          format: date-time
+    FriendRequestAccepted:
+      type: object
+      required: [request, friendship, reopenedRoomIds]
+      properties:
+        request:
+          $ref: '#/components/schemas/FriendRequest'
+        friendship:
+          $ref: '#/components/schemas/Friendship'
+        reopenedRoomIds:
+          type: array
+          description: Phòng 2 người được mở lại khỏi chỉ đọc (BR-13)
+          items:
+            type: string
+    Friendship:
+      type: object
+      required: [friendUid, since]
+      properties:
+        friendUid:
+          $ref: '#/components/schemas/Uid'
+        since:
+          $ref: '#/components/schemas/Timestamp'
+
+    # ---------- Link mời ----------
+    InviteLinkCreate:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+    InviteLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: '`{origin}/invite/{token}` — token AES-256-GCM base64url, email không đọc được (BR-06, NFR-14)'
+        expiresAt:
+          $ref: '#/components/schemas/Timestamp'
+    InviteLinkOpen:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 512
+          pattern: '^[A-Za-z0-9_-]+$'
+          description: Phần `{token}` của `/invite/{token}` (base64url)
+    InviteLinkOpenResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [login_required, pending_request]
+          description: '`login_required` khi gọi không có ID token và link còn hạn'
+        created:
+          type: boolean
+          description: true nếu vừa tạo lời mời mới; false nếu dùng lại lời mời đang chờ (Q-029)
+        request:
+          $ref: '#/components/schemas/FriendRequest'
+        inviter:
+          $ref: '#/components/schemas/UserSummary'
+
+    # ---------- Bạn bè / chặn ----------
+    RelationChangeResult:
+      type: object
+      required: [readOnlyRoomIds]
+      properties:
+        readOnlyRoomIds:
+          type: array
+          description: Phòng 2 người vừa chuyển chỉ đọc (BR-13)
+          items:
+            type: string
+    BlockCreate:
+      type: object
+      required: [blockedUid]
+      additionalProperties: false
+      properties:
+        blockedUid:
+          $ref: '#/components/schemas/Uid'
+    Block:
+      type: object
+      required: [blockedUid, createdAt]
+      properties:
+        blockedUid:
+          $ref: '#/components/schemas/Uid'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+    BlockCreated:
+      type: object
+      required: [block, unfriended, closedRequestIds, readOnlyRoomIds]
+      properties:
+        block:
+          $ref: '#/components/schemas/Block'
+        unfriended:
+          type: boolean
+          description: true nếu quan hệ bạn bè vừa bị hủy (BR-12)
+        closedRequestIds:
+          type: array
+          items:
+            type: string
+        readOnlyRoomIds:
+          type: array
+          items:
+            type: string
+
+    # ---------- Phòng ----------
+    RoomName:
+      type: [string, 'null']
+      maxLength: 50
+      description: Tối đa 50 ký tự sau trim (Q-037); null / rỗng → hiển thị tên thành viên (Q-012)
+    RoomCreate:
+      type: object
+      required: [memberUids, retention]
+      additionalProperties: false
+      properties:
+        memberUids:
+          type: array
+          description: Bạn của người tạo, không gồm người tạo (BR-15, BR-18); 1 … `maxRoomMembers - 1`
+          minItems: 1
+          maxItems: 49
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Uid'
+        name:
+          $ref: '#/components/schemas/RoomName'
+        retention:
+          type: string
+          enum: [short, long]
+          description: Không đổi được sau khi tạo (BR-16)
+        ttlDays:
+          type: integer
+          enum: [1, 2, 3, 7, 30, 90]
+          description: Bắt buộc khi `short`, không được gửi khi `long` (BR-16); giá trị hợp lệ theo `ttlDaysOptions`
+      if:
+        properties:
+          retention:
+            const: short
+      then:
+        required: [ttlDays]
+      else:
+        not:
+          required: [ttlDays]
+    RoomUpdate:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          $ref: '#/components/schemas/RoomName'
+    RoomMembersAdd:
+      type: object
+      required: [uids]
+      additionalProperties: false
+      properties:
+        uids:
+          type: array
+          minItems: 1
+          maxItems: 49
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Uid'
+    HostTransfer:
+      type: object
+      required: [newHostUid]
+      additionalProperties: false
+      properties:
+        newHostUid:
+          $ref: '#/components/schemas/Uid'
+    RoomLeave:
+      type: object
+      additionalProperties: false
+      properties:
+        newHostUid:
+          $ref: '#/components/schemas/Uid'
+          description: Bắt buộc khi người rời là host và phòng còn người khác (BR-19)
+    LastMessage:
+      type: object
+      description: Tóm tắt tin cuối (SUP-04); client ẩn nếu đã quá `expireAt`
+      required: [id, kind, status, createdAt]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [user, system]
+        senderUid:
+          type: [string, 'null']
+        textPreview:
+          type: [string, 'null']
+          maxLength: 100
+        imageCount:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [sent, recalled]
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        expireAt:
+          type: [string, 'null']
+          format: date-time
+    Room:
+      type: object
+      description: Phòng (TBL-07, bỏ `pair_key`, `schema_version`, `deleted_at`)
+      required: [id, hostUid, retention, status, memberUids, memberCount, readOnly, lastMessageAt, createdBy, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          $ref: '#/components/schemas/RoomName'
+        hostUid:
+          $ref: '#/components/schemas/Uid'
+        retention:
+          type: string
+          enum: [short, long]
+        ttlDays:
+          type: [integer, 'null']
+          enum: [1, 2, 3, 7, 30, 90, null]
+        status:
+          type: string
+          enum: [active, deleted]
+        memberUids:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Uid'
+        memberCount:
+          type: integer
+          minimum: 1
+          maximum: 50
+        readOnly:
+          type: boolean
+          description: BR-13
+        lastMessage:
+          oneOf:
+            - $ref: '#/components/schemas/LastMessage'
+            - type: 'null'
+        lastMessageAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Uid'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    RoomDeleted:
+      type: object
+      required: [id, status, deletedAt]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          const: deleted
+        deletedAt:
+          $ref: '#/components/schemas/Timestamp'
+    RoomLeft:
+      type: object
+      required: [roomId, roomDeleted]
+      properties:
+        roomId:
+          type: string
+        roomDeleted:
+          type: boolean
+          description: true khi host là người cuối cùng rời (BR-19)
+        newHostUid:
+          $ref: '#/components/schemas/Uid'
+
+    # ---------- Tin nhắn ----------
+    ReadMarkerUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        upToMessageId:
+          $ref: '#/components/schemas/MessageId'
+    ReadMarker:
+      type: object
+      required: [roomId, lastReadAt]
+      properties:
+        roomId:
+          type: string
+        lastReadAt:
+          $ref: '#/components/schemas/Timestamp'
+    MessageImageUpload:
+      type: object
+      required: [uploadPath]
+      additionalProperties: false
+      properties:
+        uploadPath:
+          type: string
+          pattern: '^uploads/[^/]+/[A-Za-z0-9_-]+$'
+          description: Đường dẫn ảnh tạm đã upload ở Storage `uploads/{uid}/{uuid}` (ADR-10); `{uid}` phải là người gửi
+        width:
+          type: integer
+          minimum: 1
+          description: '[ASSUMED → Q-044] Kích thước do client đọc lúc tạo ảnh xem trước, để giữ chỗ hiển thị'
+        height:
+          type: integer
+          minimum: 1
+    MessageCreate:
+      type: object
+      additionalProperties: false
+      description: Phải có `text` (không trống sau trim) hoặc ít nhất 1 ảnh (BR-21)
+      properties:
+        text:
+          type: string
+          maxLength: 1000
+        images:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/MessageImageUpload'
+      anyOf:
+        - required: [text]
+          properties:
+            text:
+              minLength: 1
+        - required: [images]
+          properties:
+            images:
+              minItems: 1
+    MessageImage:
+      type: object
+      required: [index, contentType, sizeBytes]
+      properties:
+        index:
+          type: integer
+          minimum: 0
+          maximum: 9
+        contentType:
+          type: string
+          pattern: '^image/'
+        sizeBytes:
+          type: integer
+          minimum: 1
+        width:
+          type: [integer, 'null']
+        height:
+          type: [integer, 'null']
+    SystemEvent:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [room_created, member_added, member_kicked, member_left, host_transferred, room_renamed]
+        actorUid:
+          type: [string, 'null']
+        targetUid:
+          type: [string, 'null']
+        roomName:
+          type: [string, 'null']
+    Message:
+      type: object
+      description: Tin nhắn (TBL-09, bỏ `images[].path`, `schema_version`)
+      required: [id, roomId, kind, status, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/MessageId'
+        roomId:
+          type: string
+        kind:
+          type: string
+          enum: [user, system]
+        senderUid:
+          type: [string, 'null']
+        text:
+          type: [string, 'null']
+          maxLength: 1000
+        images:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/MessageImage'
+        systemEvent:
+          oneOf:
+            - $ref: '#/components/schemas/SystemEvent'
+            - type: 'null'
+        status:
+          type: string
+          enum: [sent, recalled]
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        recalledAt:
+          type: [string, 'null']
+          format: date-time
+        expireAt:
+          type: [string, 'null']
+          format: date-time
+          description: null khi phòng lâu dài (BR-16)
+    MessageImageUrls:
+      type: object
+      required: [messageId, expiresAt, items]
+      properties:
+        messageId:
+          $ref: '#/components/schemas/MessageId'
+        expiresAt:
+          $ref: '#/components/schemas/Timestamp'
+          description: '`min(now + 1h, message.expireAt)`'
+        items:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required: [index, url]
+            properties:
+              index:
+                type: integer
+                minimum: 0
+              url:
+                type: string
+                format: uri
+                description: Signed URL đọc (V4), không công khai (NFR-13)
+              contentType:
+                type: string
+              width:
+                type: [integer, 'null']
+              height:
+                type: [integer, 'null']
+
+    # ---------- Thông báo ----------
+    Notification:
+      type: object
+      description: Thông báo (TBL-10)
+      required: [id, type, refType, refId, read, createdAt, expireAt]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [friend_request_received, friend_request_rejected, friend_request_accepted, room_member_added, room_member_kicked, room_disbanded, room_host_received]
+        actorUid:
+          type: [string, 'null']
+        refType:
+          type: string
+          enum: [friend_request, room]
+        refId:
+          type: string
+        roomName:
+          type: [string, 'null']
+        read:
+          type: boolean
+        readAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        expireAt:
+          $ref: '#/components/schemas/Timestamp'
+    NotificationUpdate:
+      type: object
+      required: [read]
+      additionalProperties: false
+      properties:
+        read:
+          type: boolean
+          const: true
+    NotificationReadAll:
+      type: object
+      additionalProperties: false
+      properties:
+        upTo:
+          $ref: '#/components/schemas/Timestamp'
+    NotificationReadAllResult:
+      type: object
+      required: [updatedCount]
+      properties:
+        updatedCount:
+          type: integer
+          minimum: 0
+
+    # ---------- Hệ thống ----------
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: ok

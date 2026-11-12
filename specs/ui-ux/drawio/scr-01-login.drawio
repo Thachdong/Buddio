@@ -1,0 +1,49 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="scr-01-a" name="SCR-01 Đăng nhập">
+    <mxGraphModel dx="1280" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageWidth="435" pageHeight="872" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="c2" value="SCR-01 · Mặc định (có link mời đang mở dở)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="8" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c4" value="[Logo]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=10;" vertex="1" parent="1"><mxGeometry x="147" y="180" width="80" height="80" as="geometry"/></mxCell>
+        <mxCell id="c5" value="Buddio" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="0" y="270" width="375" height="40" as="geometry"/></mxCell>
+        <mxCell id="c6" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="250" y="276" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c7" value="Trò chuyện, xả stress cùng bạn bè.&lt;br&gt;Vào nhanh chỉ với một cú chạm." style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=14;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="32" y="316" width="311" height="48" as="geometry"/></mxCell>
+        <mxCell id="c8" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="335" y="328" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c9" value="Bạn đang mở một lời mời kết bạn. Đăng nhập để tiếp tục." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#999999;fontSize=11;" vertex="1" parent="1"><mxGeometry x="16" y="400" width="343" height="44" as="geometry"/></mxCell>
+        <mxCell id="c10" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="392" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c11" value="G  Đăng nhập với Google" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1"><mxGeometry x="16" y="464" width="343" height="48" as="geometry"/></mxCell>
+        <mxCell id="c12" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="456" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c13" value="Đăng nhập chưa hoàn tất. Vui lòng thử lại." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=none;fontColor=#666666;fontSize=11;align=left;align=center;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="16" y="524" width="343" height="32" as="geometry"/></mxCell>
+        <mxCell id="c14" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="524" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c15" value="Chính sách quyền riêng tư" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=12;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="780" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c16" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="270" y="782" width="20" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="scr-01-b" name="Dialog đồng ý chính sách (lần đầu)">
+    <mxGraphModel dx="1280" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageWidth="435" pageHeight="872" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="c2" value="SCR-01 · Dialog đồng ý chính sách quyền riêng tư" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="8" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c4" value="[Logo]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=10;" vertex="1" parent="1"><mxGeometry x="147" y="180" width="80" height="80" as="geometry"/></mxCell>
+        <mxCell id="c5" value="Buddio" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="0" y="270" width="375" height="40" as="geometry"/></mxCell>
+        <mxCell id="c6" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;opacity=30;strokeColor=none;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c7" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;shadow=1;arcSize=4;" vertex="1" parent="1"><mxGeometry x="16" y="160" width="343" height="560" as="geometry"/></mxCell>
+        <mxCell id="c8" value="Chính sách quyền riêng tư" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="36" y="176" width="303" height="28" as="geometry"/></mxCell>
+        <mxCell id="c9" value="Buddio chỉ thu email, tên và ảnh đại diện từ Google để tạo tài khoản. Không chia sẻ cho bên thứ ba. Dữ liệu lưu tại Singapore...&lt;br&gt;&lt;br&gt;(nội dung đầy đủ, cuộn được)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;spacingLeft=8;verticalAlign=middle;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="36" y="212" width="303" height="330" as="geometry"/></mxCell>
+        <mxCell id="c10" value="7" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="329" y="204" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c11" value="✓" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;strokeColor=#333333;fontSize=11;" vertex="1" parent="1"><mxGeometry x="36" y="560" width="24" height="24" as="geometry"/></mxCell>
+        <mxCell id="c12" value="Tôi đã đọc và đồng ý với chính sách quyền riêng tư" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;" vertex="1" parent="1"><mxGeometry x="68" y="552" width="271" height="40" as="geometry"/></mxCell>
+        <mxCell id="c13" value="8" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="339" y="552" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c14" value="Đồng ý và tiếp tục" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1"><mxGeometry x="36" y="604" width="303" height="44" as="geometry"/></mxCell>
+        <mxCell id="c15" value="9" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="329" y="596" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c16" value="Không đồng ý" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="36" y="656" width="303" height="44" as="geometry"/></mxCell>
+        <mxCell id="c17" value="10" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="329" y="656" width="20" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,69 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="scr-12-a" name="Danh sách đã chặn">
+    <mxGraphModel dx="1280" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageWidth="870" pageHeight="872" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="c2" value="SCR-12 · Danh sách đã chặn" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="8" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#999999;align=left;spacingLeft=10;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="56" as="geometry"/></mxCell>
+        <mxCell id="c5" value="←" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="4" y="46" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c6" value="Danh sách đã chặn" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="52" y="52" width="220" height="32" as="geometry"/></mxCell>
+        <mxCell id="c7" value="Chỉ bạn thấy danh sách này. Người bị chặn không được báo khi bạn chặn hoặc bỏ chặn." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="16" y="104" width="343" height="36" as="geometry"/></mxCell>
+        <mxCell id="c8" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dddddd;" vertex="1" parent="1"><mxGeometry x="0" y="148" width="375" height="72" as="geometry"/></mxCell>
+        <mxCell id="c9" value="Ảnh" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=9;" vertex="1" parent="1"><mxGeometry x="16" y="162" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c10" value="Tuấn Phan" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="70" y="160" width="190" height="22" as="geometry"/></mxCell>
+        <mxCell id="c11" value="Đã chặn 10/11/2026" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="70" y="184" width="190" height="20" as="geometry"/></mxCell>
+        <mxCell id="c12" value="Bỏ chặn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="263" y="164" width="96" height="40" as="geometry"/></mxCell>
+        <mxCell id="c13" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dddddd;" vertex="1" parent="1"><mxGeometry x="0" y="220" width="375" height="72" as="geometry"/></mxCell>
+        <mxCell id="c14" value="Ảnh" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=9;" vertex="1" parent="1"><mxGeometry x="16" y="234" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c15" value="Người lạ 123" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="70" y="232" width="190" height="22" as="geometry"/></mxCell>
+        <mxCell id="c16" value="Đã chặn 02/11/2026" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="70" y="256" width="190" height="20" as="geometry"/></mxCell>
+        <mxCell id="c17" value="Bỏ chặn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="263" y="236" width="96" height="40" as="geometry"/></mxCell>
+        <mxCell id="c18" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="230" y="44" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c19" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="104" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c20" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2" y="148" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c21" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="156" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="c22" value="SCR-12 · Xác nhận bỏ chặn" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="435" y="8" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c23" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="435" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c24" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#999999;align=left;spacingLeft=10;" vertex="1" parent="1"><mxGeometry x="435" y="40" width="375" height="56" as="geometry"/></mxCell>
+        <mxCell id="c25" value="←" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="439" y="46" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c26" value="Danh sách đã chặn" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="487" y="52" width="220" height="32" as="geometry"/></mxCell>
+        <mxCell id="c27" value="Chỉ bạn thấy danh sách này. Người bị chặn không được báo khi bạn chặn hoặc bỏ chặn." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="451" y="104" width="343" height="36" as="geometry"/></mxCell>
+        <mxCell id="c28" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dddddd;" vertex="1" parent="1"><mxGeometry x="435" y="148" width="375" height="72" as="geometry"/></mxCell>
+        <mxCell id="c29" value="Ảnh" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=9;" vertex="1" parent="1"><mxGeometry x="451" y="162" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c30" value="Tuấn Phan" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="505" y="160" width="190" height="22" as="geometry"/></mxCell>
+        <mxCell id="c31" value="Đã chặn 10/11/2026" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="505" y="184" width="190" height="20" as="geometry"/></mxCell>
+        <mxCell id="c32" value="Bỏ chặn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="698" y="164" width="96" height="40" as="geometry"/></mxCell>
+        <mxCell id="c33" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#dddddd;" vertex="1" parent="1"><mxGeometry x="435" y="220" width="375" height="72" as="geometry"/></mxCell>
+        <mxCell id="c34" value="Ảnh" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=9;" vertex="1" parent="1"><mxGeometry x="451" y="234" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c35" value="Người lạ 123" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="505" y="232" width="190" height="22" as="geometry"/></mxCell>
+        <mxCell id="c36" value="Đã chặn 02/11/2026" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="505" y="256" width="190" height="20" as="geometry"/></mxCell>
+        <mxCell id="c37" value="Bỏ chặn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="698" y="236" width="96" height="40" as="geometry"/></mxCell>
+        <mxCell id="c38" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;opacity=30;strokeColor=none;" vertex="1" parent="1"><mxGeometry x="435" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c39" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;shadow=1;arcSize=4;" vertex="1" parent="1"><mxGeometry x="459" y="300" width="327" height="240" as="geometry"/></mxCell>
+        <mxCell id="c40" value="Bỏ chặn Tuấn Phan?" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="479" y="316" width="287" height="28" as="geometry"/></mxCell>
+        <mxCell id="c41" value="Hai bạn sẽ tìm thấy nhau qua email (nếu không ẩn danh) nhưng không tự kết bạn lại. Muốn trò chuyện cần gửi lời mời kết bạn mới. Tuấn Phan không được báo." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=13;" vertex="1" parent="1"><mxGeometry x="479" y="348" width="287" height="120" as="geometry"/></mxCell>
+        <mxCell id="c42" value="Hủy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="479" y="480" width="136" height="44" as="geometry"/></mxCell>
+        <mxCell id="c43" value="Bỏ chặn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#ffffff;strokeColor=none;" vertex="1" parent="1"><mxGeometry x="630" y="480" width="136" height="44" as="geometry"/></mxCell>
+        <mxCell id="c44" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="776" y="294" width="20" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="scr-12-b" name="Trống">
+    <mxGraphModel dx="1280" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageWidth="435" pageHeight="872" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="c2" value="SCR-12 · Trống" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="8" width="375" height="24" as="geometry"/></mxCell>
+        <mxCell id="c3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="812" as="geometry"/></mxCell>
+        <mxCell id="c4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e6e6e6;strokeColor=#999999;align=left;spacingLeft=10;" vertex="1" parent="1"><mxGeometry x="0" y="40" width="375" height="56" as="geometry"/></mxCell>
+        <mxCell id="c5" value="←" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="4" y="46" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="c6" value="Danh sách đã chặn" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="52" y="52" width="220" height="32" as="geometry"/></mxCell>
+        <mxCell id="c7" value="[Minh họa]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;dashed=1;strokeColor=#999999;fontColor=#999999;fontSize=10;" vertex="1" parent="1"><mxGeometry x="137" y="260" width="100" height="100" as="geometry"/></mxCell>
+        <mxCell id="c8" value="Bạn chưa chặn ai" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="16" y="376" width="343" height="28" as="geometry"/></mxCell>
+        <mxCell id="c9" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ff6666;fontColor=#ffffff;strokeColor=none;fontSize=11;" vertex="1" parent="1"><mxGeometry x="345" y="376" width="20" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
