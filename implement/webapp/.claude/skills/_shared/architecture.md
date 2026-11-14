@@ -91,7 +91,7 @@ Quy tắc phụ:
 | `import 'client-only'` dòng đầu | client/, shared/client | server kéo SDK browser |
 | `'use server'` dòng đầu | `server/actions.ts` | mọi export phải là async function |
 | `'use client'` | entry của subtree client (hooks, ui tương tác) | — |
-| `eslint-plugin-boundaries` | `eslint.config.mjs` | import sai tầng theo bảng mục 3 |
+| `eslint-plugin-boundaries` v7 (`boundaries/dependencies`) | `eslint.config.mjs` | import sai tầng theo bảng mục 3 |
 | `tsc --noEmit` | CI | contract lệch giữa hai phía |
 | Path alias `@/*` → `src/*` | `tsconfig.json` | cấm import tương đối vượt quá 1 cấp `../..` sang feature khác |
 

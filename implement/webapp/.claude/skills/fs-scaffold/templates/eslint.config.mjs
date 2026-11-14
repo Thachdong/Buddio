@@ -5,11 +5,22 @@ import boundaries from "eslint-plugin-boundaries";
 
 /**
  * Ranh giới tầng — nguồn: .claude/skills/_shared/architecture.md mục 3.
- * Thứ tự elements quan trọng: pattern cụ thể đứng trước.
- * Cú pháp capture `${from.feature}` — kiểm lại README của eslint-plugin-boundaries đã cài
- * (bản mới có thể dùng `{{from.feature}}`).
+ * Cú pháp eslint-plugin-boundaries v7 (rule `boundaries/dependencies`, `policies`, selector object, template {{ }}).
+ * Element descriptor khớp theo folder, partialMatch: false → pattern tính từ gốc project.
  */
 const F = "src/features/*";
+
+const el = (type, pattern, capture) => ({ type, pattern, partialMatch: false, ...(capture ? { capture } : {}) });
+
+/** Selector đích. sameFeature = chỉ cho import trong cùng feature. */
+const to = (type, sameFeature = false) => ({
+  to: {
+    element: sameFeature
+      ? { type, captured: { feature: "{{ from.element.captured.feature }}" } }
+      : { type },
+  },
+});
+const policy = (fromType, allow) => ({ from: { element: { type: fromType } }, allow });
 
 const boundaryRules = {
   files: ["src/**/*.{ts,tsx}"],
@@ -18,47 +29,51 @@ const boundaryRules = {
     "import/resolver": { typescript: { alwaysTryTypes: true } },
     "boundaries/include": ["src/**/*"],
     "boundaries/elements": [
-      { type: "contracts", pattern: [`${F}/contracts/**`], mode: "full", capture: ["feature"] },
-      { type: "contracts", pattern: ["src/shared/contracts/**"], mode: "full" },
-      { type: "actions", pattern: [`${F}/server/actions.ts`, `${F}/server/actions/**`], mode: "full", capture: ["feature"] },
-      { type: "services", pattern: [`${F}/server/services/**`], mode: "full", capture: ["feature"] },
-      { type: "queries", pattern: [`${F}/server/queries/**`], mode: "full", capture: ["feature"] },
-      { type: "repositories", pattern: [`${F}/server/repositories/**`], mode: "full", capture: ["feature"] },
-      { type: "hooks", pattern: [`${F}/hooks/**`], mode: "full", capture: ["feature"] },
-      { type: "client", pattern: [`${F}/client/**`], mode: "full", capture: ["feature"] },
-      { type: "ui", pattern: [`${F}/ui/**`], mode: "full", capture: ["feature"] },
-      { type: "shared-server", pattern: ["src/shared/server/**"], mode: "full" },
-      { type: "shared-client", pattern: ["src/shared/client/**"], mode: "full" },
-      { type: "shared-ui", pattern: ["src/shared/ui/**"], mode: "full" },
-      { type: "lib", pattern: ["src/shared/lib/**"], mode: "full" },
-      { type: "i18n", pattern: ["src/shared/i18n/**"], mode: "full" },
-      { type: "app-api", pattern: ["src/app/api/**"], mode: "full" },
-      { type: "app-page", pattern: ["src/app/**", "src/proxy.ts"], mode: "full" },
+      el("contracts", `${F}/contracts`, ["feature"]),
+      el("contracts", "src/shared/contracts"),
+      el("services", `${F}/server/services`, ["feature"]),
+      el("queries", `${F}/server/queries`, ["feature"]),
+      el("repositories", `${F}/server/repositories`, ["feature"]),
+      // phần còn lại của server/ = actions.ts (hoặc actions/) — phải đứng SAU 3 dòng trên
+      el("actions", `${F}/server`, ["feature"]),
+      el("hooks", `${F}/hooks`, ["feature"]),
+      el("client", `${F}/client`, ["feature"]),
+      el("ui", `${F}/ui`, ["feature"]),
+      el("shared-server", "src/shared/server"),
+      el("shared-client", "src/shared/client"),
+      el("shared-ui", "src/shared/ui"),
+      el("lib", "src/shared/lib"),
+      el("i18n", "src/shared/i18n"),
+      el("app-api", "src/app/api"),
+      el("app-page", "src/app"),
     ],
+    // proxy.ts (middleware v16) chỉ redirect lạc quan, không thuộc tầng nào
+    "boundaries/ignore": ["src/proxy.ts"],
   },
   rules: {
     "boundaries/no-unknown-files": "error",
-    "boundaries/element-types": [
+    "boundaries/dependencies": [
       "error",
       {
         default: "disallow",
-        message: "${file.type} không được import ${dependency.type} — xem _shared/architecture.md mục 3",
-        rules: [
-          { from: "contracts", allow: ["contracts"] },
-          { from: "lib", allow: ["lib"] },
-          { from: "i18n", allow: ["contracts"] },
-          { from: "shared-ui", allow: ["shared-ui", "lib"] },
-          { from: "ui", allow: ["ui", ["hooks", { feature: "${from.feature}" }], "contracts", "shared-ui", "lib", "i18n"] },
-          { from: "hooks", allow: [["actions", { feature: "${from.feature}" }], ["client", { feature: "${from.feature}" }], ["hooks", { feature: "${from.feature}" }], "contracts", "shared-client", "lib", "i18n"] },
-          { from: "client", allow: [["client", { feature: "${from.feature}" }], "contracts", "shared-client", "lib"] },
-          { from: "shared-client", allow: ["shared-client", "contracts", "lib"] },
-          { from: "actions", allow: [["services", { feature: "${from.feature}" }], "contracts", "shared-server"] },
-          { from: "app-api", allow: ["services", "contracts", "shared-server"] },
-          { from: "services", allow: ["services", "repositories", "contracts", "shared-server", "lib"] },
-          { from: "queries", allow: ["queries", "repositories", "contracts", "shared-server", "lib"] },
-          { from: "repositories", allow: ["repositories", "contracts", "shared-server", "lib"] },
-          { from: "shared-server", allow: ["shared-server", "contracts", "lib", "i18n"] },
-          { from: "app-page", allow: ["app-page", "ui", "queries", "shared-ui", "shared-server", "i18n", "lib"] },
+        message:
+          "{{ from.element.types.[0] }} không được import {{ to.element.types.[0] }} — xem .claude/skills/_shared/architecture.md mục 3",
+        policies: [
+          policy("contracts", [to("contracts")]),
+          policy("lib", [to("lib")]),
+          policy("i18n", [to("contracts")]),
+          policy("shared-ui", [to("shared-ui"), to("lib")]),
+          policy("ui", [to("ui"), to("hooks", true), to("contracts"), to("shared-ui"), to("lib"), to("i18n")]),
+          policy("hooks", [to("actions", true), to("client", true), to("hooks", true), to("contracts"), to("shared-client"), to("lib"), to("i18n")]),
+          policy("client", [to("client", true), to("contracts"), to("shared-client"), to("lib")]),
+          policy("shared-client", [to("shared-client"), to("contracts"), to("lib")]),
+          policy("actions", [to("services", true), to("contracts"), to("shared-server")]),
+          policy("app-api", [to("services"), to("contracts"), to("shared-server")]),
+          policy("services", [to("services"), to("repositories"), to("contracts"), to("shared-server"), to("lib")]),
+          policy("queries", [to("queries"), to("repositories"), to("contracts"), to("shared-server"), to("lib")]),
+          policy("repositories", [to("repositories"), to("contracts"), to("shared-server"), to("lib")]),
+          policy("shared-server", [to("shared-server"), to("contracts"), to("lib"), to("i18n")]),
+          policy("app-page", [to("app-page"), to("ui"), to("queries"), to("shared-ui"), to("shared-server"), to("i18n"), to("lib")]),
         ],
       },
     ],
@@ -66,7 +81,6 @@ const boundaryRules = {
 };
 
 // Firebase SDK chỉ được dùng đúng chỗ
-
 const firebaseGuards = [
   {
     files: ["src/features/*/ui/**", "src/features/*/hooks/**", "src/app/**/page.tsx", "src/app/**/layout.tsx"],

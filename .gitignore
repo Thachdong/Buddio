@@ -1,0 +1,35 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Node / Next (bổ sung cho implement/webapp/.gitignore)
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Env — giữ file mẫu
+.env*
+!.env.example
+
+# Firebase emulator
+firebase-debug*.log
+firestore-debug.log
+database-debug.log
+ui-debug.log
+.firebase/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Claude Code
+.claude/settings.local.json
+.work/
+
+# graphify — output sinh lại được bằng /graphify --update
+graphify-out/

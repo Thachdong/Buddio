@@ -1,0 +1,65 @@
+import type { ErrorCode } from '@/shared/contracts'
+
+/**
+ * Từ điển tiếng Việt duy nhất (NFR-24). Mọi chuỗi giao diện lấy từ đây.
+ * Mỗi feature thêm namespace riêng: vi.<feature>.<screen>.<key>. Copy lấy từ specs/ui-ux/scr-*.md.
+ */
+const errors = {
+  VALIDATION_FAILED: 'Dữ liệu không hợp lệ.',
+  UNAUTHENTICATED: 'Bạn cần đăng nhập để tiếp tục.',
+  TOKEN_REVOKED: 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.',
+  SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  CONSENT_REQUIRED: 'Bạn cần đồng ý chính sách quyền riêng tư để tiếp tục.',
+  DISPLAY_NAME_INVALID: 'Tên hiển thị phải từ 1 đến 50 ký tự.',
+  EMAIL_INVALID: 'Email không đúng định dạng.',
+  EMAIL_LOOKUP_RATE_LIMITED: 'Bạn đã tra quá nhiều lần. Vui lòng thử lại sau.',
+  CANNOT_INVITE_SELF: 'Đây là email của bạn.',
+  FRIEND_TARGET_NOT_FOUND: 'Không tìm thấy người dùng phù hợp.',
+  ALREADY_FRIENDS: 'Hai bạn đã là bạn bè.',
+  FRIEND_REQUEST_ALREADY_PENDING: 'Đang chờ phản hồi.',
+  REJECT_COOLDOWN: 'Chưa thể gửi lại lời mời, thử lại sau.',
+  FRIEND_REQUEST_NOT_FOUND: 'Lời mời không còn hiệu lực.',
+  FRIEND_REQUEST_FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
+  FRIEND_REQUEST_NOT_PENDING: 'Lời mời không còn hiệu lực.',
+  INVITE_LINK_INVALID: 'Link không còn hiệu lực.',
+  INVITE_LINK_WRONG_ACCOUNT: 'Link mời này dành cho tài khoản khác.',
+  NOT_FRIENDS: 'Hai bạn không còn là bạn bè.',
+  USER_NOT_FOUND: 'Người dùng không tồn tại.',
+  CANNOT_BLOCK_SELF: 'Bạn không thể tự chặn mình.',
+  ALREADY_BLOCKED: 'Bạn đang chặn người này.',
+  BLOCK_NOT_FOUND: 'Bạn không chặn người này.',
+  ROOM_NOT_FOUND: 'Phòng không tồn tại.',
+  NOT_ROOM_MEMBER: 'Bạn không còn là thành viên phòng này.',
+  NOT_ROOM_HOST: 'Bạn không có quyền thực hiện thao tác này.',
+  ROOM_FULL: 'Phòng đã đủ 50 thành viên.',
+  MEMBERS_NOT_FRIENDS: 'Người được chọn không còn là bạn của bạn.',
+  ROOM_TTL_INVALID: 'Vui lòng chọn thời hạn tin nhắn hợp lệ.',
+  ROOM_NAME_TOO_LONG: 'Tên phòng tối đa 50 ký tự.',
+  MEMBER_ALREADY_IN_ROOM: 'Người này đã ở trong phòng.',
+  MEMBER_NOT_IN_ROOM: 'Người này không còn trong phòng.',
+  CANNOT_TARGET_SELF: 'Bạn không thể chọn chính mình.',
+  HOST_TRANSFER_REQUIRED: 'Hãy chọn người nhận quyền chủ phòng trước khi rời phòng.',
+  ROOM_READ_ONLY: 'Phòng đang ở chế độ chỉ đọc.',
+  MESSAGE_EMPTY: 'Tin nhắn trống.',
+  MESSAGE_TOO_LONG: 'Tin nhắn tối đa 1000 ký tự.',
+  TOO_MANY_IMAGES: 'Mỗi tin tối đa 10 ảnh.',
+  IMAGES_TOO_LARGE: 'Tổng dung lượng ảnh tối đa 10MB.',
+  INVALID_IMAGE_TYPE: 'Chỉ gửi được tệp ảnh.',
+  UPLOAD_NOT_FOUND: 'Ảnh tải lên không còn, vui lòng chọn lại.',
+  MESSAGE_ID_CONFLICT: 'Tin nhắn bị trùng, vui lòng gửi lại.',
+  MESSAGE_NOT_FOUND: 'Tin nhắn không còn tồn tại.',
+  NOT_MESSAGE_SENDER: 'Bạn chỉ thu hồi được tin của mình.',
+  MESSAGE_RECALLED: 'Tin nhắn đã được thu hồi.',
+  NOTIFICATION_NOT_FOUND: 'Thông báo không còn tồn tại.',
+  INTERNAL_ERROR: 'Có lỗi xảy ra, vui lòng thử lại.',
+} satisfies Record<ErrorCode, string>
+
+export const vi = {
+  common: {
+    networkError: 'Không kết nối được, thử lại',
+    staleDeploy: 'Ứng dụng vừa được cập nhật. Vui lòng tải lại trang.',
+    retry: 'Thử lại',
+    loading: 'Đang tải…',
+  },
+  errors,
+} as const

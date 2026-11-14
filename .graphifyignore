@@ -1,0 +1,22 @@
+# graphify đọc .gitignore trước, file này chỉ loại THÊM.
+
+# Build / dependency / output
+node_modules/
+.next/
+graphify-out/
+package-lock.json
+*.tsbuildinfo
+next-env.d.ts
+
+# Asset tĩnh, không mang tri thức
+implement/webapp/public/
+*.ico
+*.svg
+
+# Bản nháp đã được gộp vào tài liệu chính (idea/business*.md, backlog/backlog.md)
+idea/_draft/
+backlog/_draft/
+
+# Diagram drawio = bản XML trùng nội dung với specs/ui-ux/*.md
+specs/ui-ux/drawio/
+*.drawio
