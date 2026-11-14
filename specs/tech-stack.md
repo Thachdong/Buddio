@@ -36,7 +36,7 @@ Phiên bản: dùng bản ổn định mới nhất trong nhánh ghi dưới đ�
 | Frontend | Next.js (App Router) + React | Next.js 16.x, React 19.x | ADR-02 |
 | UI | Tailwind CSS + shadcn/ui (Radix) | Tailwind 4.x | ADR-02, NFR-22, NFR-23 |
 | Validation | Zod (dùng chung client & server) | 3.x | ADR-03 |
-| Backend (ghi) | Next.js Route Handlers `/api/*` chạy trên App Hosting + `firebase-admin` | firebase-admin 13.x | ADR-03 |
+| Backend (ghi) | Next.js **Server Actions** (mặc định) chạy trên App Hosting + `firebase-admin`; Route Handlers `/api/*` chỉ khi cần endpoint HTTP | firebase-admin 13.x | ADR-03 |
 | Backend (nền) | Cloud Functions for Firebase 2nd gen — **chỉ 2 task queue function**: `purgeRoom`, `purgeAccount` | firebase-functions 6.x | ADR-11 |
 | Database | Cloud Firestore (Native mode), region `asia-southeast1` | — | ADR-04 |
 | Presence / đang soạn | Firebase Realtime Database, region `asia-southeast1` | — | ADR-05 |
@@ -119,8 +119,10 @@ flowchart LR
 - **Bối cảnh:** Nghiệp vụ có nhiều quy tắc chéo: BR-04 không lộ tài khoản, BR-13 chỉ đọc, BR-14 chặn hai chiều, BR-18 quyền host, BR-15 giới hạn 50, hệ quả dây chuyền khi chặn hoặc xóa tài khoản.
 - **Các phương án:** A. Ghi qua server · B. Ghi trực tiếp từ client, Security Rules kiểm quyền · C. Lai.
 - **Quyết định:** A (Q-041).
-  - Route Handlers dùng `firebase-admin`, xác thực Firebase ID token ở mỗi request, validate bằng Zod, kiểm BR trong Firestore transaction.
+  - Ghi qua **Server Actions** (mặc định). Route Handlers `/api/*` chỉ viết khi cần endpoint HTTP (client ngoài Next, webhook) hoặc khi được yêu cầu rõ. Cả hai là adapter mỏng gọi chung một lớp service: xác thực phiên, validate bằng Zod, kiểm BR trong Firestore transaction bằng `firebase-admin`.
+  - `specs/api-contract.yml` vẫn là nguồn chuẩn cho operation, schema và mã lỗi. Mỗi `operationId` tương ứng một Server Action `<operationId>Action`, trả `ActionResult<T>` = `{ok:true,data}` hoặc `{ok:false,error:Error}`.
   - Security Rules: **cấm mọi ghi từ client**; chỉ cho đọc theo quyền.
+  - *Cập nhật 2026-11-14:* đổi transport mặc định từ Route Handlers sang Server Actions (quyết định khi lập bộ skill coding).
 - **Hệ quả:** Logic nghiệp vụ nằm một chỗ, test được bằng unit test và emulator. Gửi tin thêm một chặng mạng (khoảng 50–150ms), vẫn trong NFR-01 ≤1s. Không dùng offline write của Firestore; tin gửi lỗi xử lý theo FLOW-10a E3.
 - **Ref:** Q-041, NFR-01, NFR-13
 
@@ -149,7 +151,8 @@ flowchart LR
 - **Quyết định:**
   - Firebase Auth với Google provider, đăng nhập bằng popup trên desktop, redirect trên điện thoại.
   - Server lưu `lastActiveAt` của người dùng. Quá 30 ngày → `revokeRefreshTokens` và bắt đăng nhập lại.
-  - Đăng xuất và xóa tài khoản gọi `revokeRefreshTokens`. API kiểm `verifyIdToken(token, checkRevoked=true)`.
+  - Đăng xuất và xóa tài khoản gọi `revokeRefreshTokens`.
+  - *Cập nhật 2026-11-14 (theo ADR-03):* Server Action không có header `Authorization` → dùng **Firebase session cookie** tên `__session` (App Hosting chỉ forward cookie này), `httpOnly`, `secure`, `sameSite=lax`. Đăng nhập: client lấy ID token → action `createSession` → `createSessionCookie` (tối đa 14 ngày). Mỗi request server kiểm `verifySessionCookie(cookie, checkRevoked=true)`. Cookie hết hạn nhưng Firebase client còn đăng nhập → client tự tạo lại phiên. Mốc 30 ngày không dùng vẫn tính theo `users.last_active_at`. Route Handler (nếu có) chấp nhận cookie hoặc `Authorization: Bearer <idToken>`.
   - Lần đầu đăng nhập: bắt đồng ý chính sách quyền riêng tư trước khi tạo hồ sơ (NFR-17).
 - **Hệ quả:** Không tự quản lý mật khẩu. Tài khoản Firebase Auth bị xóa khi xóa tài khoản Buddio; đăng nhập lại tạo `uid` mới, đúng với BR-28.
 - **Ref:** BR-01, BR-28, NFR-11, NFR-17

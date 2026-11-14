@@ -18,6 +18,12 @@ info:
     - Việc nền (`purgeRoom`, `purgeAccount` — ADR-11) là Cloud Functions task queue, không phải HTTP endpoint;
       xóa theo hạn do Firestore TTL / Storage lifecycle làm (ADR-09) → không có endpoint.
 
+    ## Transport (ADR-03, cập nhật 2026-11-14)
+    - Mặc định mỗi operation được hiện thực bằng **Server Action** `<operationId>Action(input)` trả
+      `ActionResult<T>` = `{ok: true, data: <response 2xx>}` | `{ok: false, error: Error}`. Path/method/status ở file này
+      chỉ áp dụng khi operation được expose thành Route Handler `/api/*` (khi cần endpoint HTTP).
+    - Auth của Server Action dùng session cookie `__session` thay cho header Bearer (xem ADR-06).
+
     ## Xác thực (ADR-06)
     - Client đăng nhập Firebase Authentication (Google provider), lấy **Firebase ID token** và gửi
       `Authorization: Bearer <idToken>` ở mọi request.
