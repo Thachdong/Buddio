@@ -2,7 +2,7 @@
 
 | Epic | Milestone | Point | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| EPIC-01 | M0 | 3 | — | TODO |
+| EPIC-01 | M0 | 3 | — | DONE |
 
 ## 1. Mục tiêu demo
 Sau task này: **Dev chạy `npm run dev` + `firebase emulators:start`, mở `http://localhost:3000/login` trên khung mobile 375×812, thấy màn Đăng nhập tĩnh tiếng Việt (logo, mô tả, nút "Đăng nhập với Google" chưa hoạt động); gọi `GET /api/health` nhận `200 {"status":"ok"}`; GitHub Actions chạy lint, typecheck, Vitest (có test rules trên emulator) và Playwright smoke đều xanh.**
@@ -22,35 +22,35 @@ Sau task này: **Dev chạy `npm run dev` + `firebase emulators:start`, mở `ht
 
 ## 3. Việc cần làm
 ### UI
-- [ ] Khởi tạo Next.js 16 (App Router) + React 19 + TypeScript 5 strict; pin chính xác phiên bản trong `package.json` (tech-stack mục 2).
-- [ ] Tailwind 4 + shadcn/ui (Button, Dialog, Toast, Skeleton, Switch, Checkbox, Tabs — thêm khi dùng); font hỗ trợ tiếng Việt.
-- [ ] Cấu trúc thư mục: `app/(public)/login`, `app/(app)/…` (nhóm route cần đăng nhập, để trống), `app/api/*` (route handler mỏng), `server/` (domain, repository, firebase-admin), `shared/` (schema Zod, type dùng chung client/server), `functions/` (Cloud Functions 2nd gen, chưa có function), `messages/vi.ts` (từ điển) `[ASSUMED → Q-047]` tên thư mục `shared/` và `messages/`.
-- [ ] Trang `/login` render ở server (NFR-06) theo SCR-01 mục 1–2: logo + "Buddio", mô tả "Trò chuyện, xả stress cùng bạn bè. Vào nhanh chỉ với một cú chạm.", nút "Đăng nhập với Google" (chưa gắn hành động), link "Chính sách quyền riêng tư" (trỏ `/privacy`, trang làm ở T-002). Khung căn giữa, rộng tối đa 400px.
-- [ ] Trang gốc `/` chuyển tới `/login` (chưa có phiên — guard thật ở T-002).
-- [ ] Helper `t('key')` đọc `messages/vi.ts`; mọi chữ trên `/login` dùng helper (NFR-24).
+- [x] Khởi tạo Next.js 16 (App Router) + React 19 + TypeScript 5 strict; pin chính xác phiên bản trong `package.json` (tech-stack mục 2).
+- [x] Tailwind 4 + shadcn/ui (Button, Dialog, Toast, Skeleton, Switch, Checkbox, Tabs — thêm khi dùng); font hỗ trợ tiếng Việt.
+- [x] Cấu trúc thư mục: `app/(public)/login`, `app/(app)/…` (nhóm route cần đăng nhập, để trống), `app/api/*` (route handler mỏng), `server/` (domain, repository, firebase-admin), `shared/` (schema Zod, type dùng chung client/server), `functions/` (Cloud Functions 2nd gen, chưa có function), `messages/vi.ts` (từ điển) `[ASSUMED → Q-047]` tên thư mục `shared/` và `messages/`. → Thực tế theo architecture.md: `src/shared/{contracts,server,client,i18n/vi.ts}`, `src/features/<f>/…`; nhóm `(tabs)`/`(full)` tạo ở T-002.
+- [x] Trang `/login` render ở server (NFR-06) theo SCR-01 mục 1–2: logo + "Buddio", mô tả "Trò chuyện, xả stress cùng bạn bè. Vào nhanh chỉ với một cú chạm.", nút "Đăng nhập với Google" (chưa gắn hành động), link "Chính sách quyền riêng tư" (trỏ `/privacy`, trang làm ở T-002). Khung căn giữa, rộng tối đa 400px.
+- [x] Trang gốc `/` chuyển tới `/login` (chưa có phiên — guard thật ở T-002).
+- [x] Helper `t('key')` đọc `messages/vi.ts`; mọi chữ trên `/login` dùng helper (NFR-24). → Dùng object có type `vi.*` (`src/shared/i18n/vi.ts`), key sai bị tsc bắt.
 
 ### API / Backend
-- [ ] `GET /api/health` (`getHealth`) → `200 {"status":"ok"}`, không đọc dữ liệu nghiệp vụ, không cần ID token.
-- [ ] Khởi tạo `firebase-admin` dùng chung (`server/firebase-admin.ts`): tự trỏ emulator khi có biến `FIRESTORE_EMULATOR_HOST`, `FIREBASE_AUTH_EMULATOR_HOST`, `FIREBASE_DATABASE_EMULATOR_HOST`, `FIREBASE_STORAGE_EMULATOR_HOST`.
-- [ ] Khởi tạo Firebase JS SDK 12 phía client (`connectXxxEmulator` khi `NEXT_PUBLIC_USE_EMULATOR=true`).
-- [ ] Logger có cấu trúc (JSON) dùng chung server + functions; danh sách field bị che (`email`, `emailNorm`, `email_norm`, `text`, `displayName`, `token`, `authorization`) → thay bằng `[REDACTED]` (NFR-27) `[ASSUMED → Q-047]` dùng pino với `redact`.
-- [ ] Middleware log request cho route handler: method, path, status, thời gian; không log body / header `Authorization`.
+- [x] `GET /api/health` (`getHealth`) → `200 {"status":"ok"}`, không đọc dữ liệu nghiệp vụ, không cần ID token.
+- [x] Khởi tạo `firebase-admin` dùng chung (`server/firebase-admin.ts`): tự trỏ emulator khi có biến `FIRESTORE_EMULATOR_HOST`, `FIREBASE_AUTH_EMULATOR_HOST`, `FIREBASE_DATABASE_EMULATOR_HOST`, `FIREBASE_STORAGE_EMULATOR_HOST`.
+- [x] Khởi tạo Firebase JS SDK 12 phía client (`connectXxxEmulator` khi `NEXT_PUBLIC_USE_EMULATOR=true`).
+- [x] Logger có cấu trúc (JSON) dùng chung server + functions; danh sách field bị che (`email`, `emailNorm`, `email_norm`, `text`, `displayName`, `token`, `authorization`) → thay bằng `[REDACTED]` (NFR-27) `[ASSUMED → Q-047]` dùng pino với `redact`. → Giữ logger JSON tự viết (`src/shared/server/logger.ts`) có redact, không thêm pino.
+- [x] Middleware log request cho route handler: method, path, status, thời gian; không log body / header `Authorization`.
 
 ### Data
-- [ ] `firebase.json` cấu hình Emulator Suite: Auth, Firestore, Realtime Database, Storage, Functions (+ Emulator UI); region `asia-southeast1` cho functions.
-- [ ] `firestore.rules`: `allow read, write: if false` cho mọi đường dẫn.
-- [ ] `database.rules.json`: `.read: false`, `.write: false`.
-- [ ] `storage.rules`: `allow read, write: if false`.
-- [ ] `firestore.indexes.json`: `{ "indexes": [], "fieldOverrides": [] }`.
-- [ ] Script `npm run seed` rỗng (khung để T-002 thêm `config/limits`) `[ASSUMED → Q-047]`.
+- [x] `firebase.json` cấu hình Emulator Suite: Auth, Firestore, Realtime Database, Storage, Functions (+ Emulator UI); region `asia-southeast1` cho functions.
+- [x] `firestore.rules`: `allow read, write: if false` cho mọi đường dẫn.
+- [x] `database.rules.json`: `.read: false`, `.write: false`.
+- [x] `storage.rules`: `allow read, write: if false`.
+- [x] `firestore.indexes.json`: `{ "indexes": [], "fieldOverrides": [] }`.
+- [x] Script `npm run seed` rỗng (khung để T-002 thêm `config/limits`) `[ASSUMED → Q-047]`.
 
 ### Khác
-- [ ] Vitest: 2 project — `unit` (node) và `emulator` (chạy trong `firebase emulators:exec`); `@firebase/rules-unit-testing` cho test rules.
-- [ ] Playwright: project `mobile` viewport 375×812, `baseURL http://localhost:3000`, `webServer` khởi động Next dev.
-- [ ] ESLint + Prettier; `npm run lint`, `npm run typecheck` (`tsc --noEmit`).
-- [ ] GitHub Actions `.github/workflows/ci.yml`: Node 22, Java 21 (cho emulator), cache npm + emulator jars; các bước lint → typecheck → `firebase emulators:exec "npm run test:unit && npm run test:emulator && npm run test:e2e"`.
-- [ ] `.env.example` (biến emulator, `NEXT_PUBLIC_FIREBASE_*` dùng project id demo `demo-buddio`) `[ASSUMED → Q-047]` project id dạng `demo-*` để emulator không cần project thật.
-- [ ] `README.md` mục "Chạy local": cài đặt, `npm run emulators`, `npm run dev`, `npm test`.
+- [x] Vitest: 2 project — `unit` (node) và `emulator` (chạy trong `firebase emulators:exec`); `@firebase/rules-unit-testing` cho test rules.
+- [x] Playwright: project `mobile` viewport 375×812, `baseURL http://localhost:3000`, `webServer` khởi động Next dev.
+- [x] ESLint + Prettier; `npm run lint`, `npm run typecheck` (`tsc --noEmit`).
+- [x] GitHub Actions `.github/workflows/ci.yml`: Node 22, Java 21 (cho emulator), cache npm + emulator jars; các bước lint → typecheck → `firebase emulators:exec "npm run test:unit && npm run test:emulator && npm run test:e2e"`.
+- [x] `.env.example` (biến emulator, `NEXT_PUBLIC_FIREBASE_*` dùng project id demo `demo-buddio`) `[ASSUMED → Q-047]` project id dạng `demo-*` để emulator không cần project thật.
+- [x] `README.md` mục "Chạy local": cài đặt, `npm run emulators`, `npm run dev`, `npm test`.
 
 ## 4. Acceptance criteria
 | # | Given | When | Then | Nguồn |

@@ -105,7 +105,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   boundaryRules,
   ...firebaseGuards,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", ".claude/**", ".work/**"]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", ".claude/**", ".work/**", "functions/**", "playwright-report/**", "test-results/**"]),
 ]);
 
 export default eslintConfig;

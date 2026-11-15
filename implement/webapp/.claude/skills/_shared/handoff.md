@@ -2,7 +2,7 @@
 
 Orchestrator (`fs-build-feature`, `fs-change`) tạo file này. Mỗi worker đọc **section của mình**, làm việc, tick checkbox và ghi phần **Output** (chữ ký đã tạo, file đã tạo). Worker không sửa section của worker khác. Nếu thấy sai thì ghi vào `## Issues`.
 
-`.work/` nằm trong `.gitignore`.
+`.work/` nằm trong `.gitignore`. Khi kết thúc, orchestrator tóm plan thành bản ghi lâu dài ở `.claude/history/` (xem `history.md`), được commit.
 
 ```markdown
 # <task-id> · <tên task>

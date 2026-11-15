@@ -7,7 +7,7 @@ description: Điều phối sửa hoặc thay đổi một phần đã có của
 
 Vai trò: **điều phối thay đổi nhỏ và có mục tiêu**. Chỉ chạm vào các tầng cần thiết. Không tự viết code.
 
-Đọc trước: `../_shared/architecture.md`, `../_shared/handoff.md`.
+Đọc trước: `../_shared/architecture.md`, `../_shared/handoff.md`, `../_shared/history.md`.
 
 ## Bước 1: Định vị
 
@@ -15,7 +15,8 @@ Vai trò: **điều phối thay đổi nhỏ và có mục tiêu**. Chỉ chạm
 2. Tìm vị trí:
    - Đọc từ khoá trong yêu cầu (màn hình, operation, mã lỗi, BR) rồi grep `src/features`.
    - Nếu `../../graphify-out/graph.json` tồn tại, có thể chạy `graphify query "<câu hỏi>"` ở gốc repo để tìm spec liên quan (BR, SCR, TBL, task).
-3. Xếp loại theo bảng dưới để chọn worker.
+3. **Lịch sử:** đọc `.claude/history/INDEX.md` và bản ghi của task/thay đổi đã tạo ra phần code này. Mục "Quyết định" và "Ghi chú cho lần sau" thường giải thích vì sao code đang như vậy, nên đọc trước khi kết luận đó là bug.
+4. Xếp loại theo bảng dưới để chọn worker.
 
 | Triệu chứng / yêu cầu | Tầng | Worker |
 |---|---|---|
@@ -50,7 +51,12 @@ Tạo `.work/<change-id>/plan.md` (`change-id` = `C-<yyyymmdd>-<slug>`) theo `_s
 3. Gọi `fs-test` bổ sung hoặc cập nhật test cho hành vi mới.
 4. Gọi `fs-verify`. FAIL thì giao lỗi cho worker được gán. Tối đa 3 vòng, sau đó dừng và báo user.
 
-## Bước 5: Báo cáo
+## Bước 5: Ghi history và báo cáo
+- **Ghi history (bắt buộc, kể cả khi FAIL hoặc STOPPED, vd đang chờ user duyệt sửa spec):** tạo `.claude/history/<yyyy-mm-dd>_<change-id>_<slug>.md` theo `_shared/history.md` và thêm một dòng lên đầu `INDEX.md`.
+  - Mục "Tóm tắt" ghi *hiện tại X → mong muốn Y*, và nguyên nhân gốc nếu là bug.
+  - Mục "Quyết định" ghi vì sao chọn sửa ở tầng đó.
+  - Thêm dòng `Liên quan: <id bản ghi gốc>` dưới bảng đầu nếu sửa code của một task đã có history.
+- Báo user, kèm đường dẫn bản ghi:
 - Nguyên nhân gốc (nếu là bug), tầng đã sửa, file đã đổi.
 - Test tái hiện: fail trước khi sửa, pass sau khi sửa.
 - Spec đã cập nhật (nếu có).
@@ -59,4 +65,5 @@ Tạo `.work/<change-id>/plan.md` (`change-id` = `C-<yyyymmdd>-<slug>`) theo `_s
 ## Không làm
 - Không sửa code trực tiếp; không sửa ở tầng sai chỉ cho nhanh (vd thêm `if` vào UI để vá lỗi của service).
 - Không sửa test cho khớp với code sai.
-- Không mở rộng phạm vi ngoài yêu cầu. Thấy vấn đề khác thì ghi vào báo cáo, không tự sửa.
+- Không mở rộng phạm vi ngoài yêu cầu. Thấy vấn đề khác thì ghi vào báo cáo và mục "Còn mở" của history, không tự sửa.
+- Không kết thúc mà chưa ghi history.

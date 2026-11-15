@@ -1,0 +1,8 @@
+.next
+node_modules
+functions/node_modules
+package-lock.json
+.claude
+.work
+playwright-report
+test-results

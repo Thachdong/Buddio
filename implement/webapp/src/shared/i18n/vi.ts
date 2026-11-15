@@ -55,6 +55,19 @@ const errors = {
 } satisfies Record<ErrorCode, string>
 
 export const vi = {
+  app: {
+    name: 'Buddio',
+    description: 'Trò chuyện, xả stress cùng bạn bè.',
+  },
+  auth: {
+    // SCR-01 mục 2
+    login: {
+      title: 'Đăng nhập',
+      tagline: 'Trò chuyện, xả stress cùng bạn bè. Vào nhanh chỉ với một cú chạm.',
+      signInWithGoogle: 'Đăng nhập với Google',
+      privacyPolicy: 'Chính sách quyền riêng tư',
+    },
+  },
   common: {
     networkError: 'Không kết nối được, thử lại',
     staleDeploy: 'Ứng dụng vừa được cập nhật. Vui lòng tải lại trang.',

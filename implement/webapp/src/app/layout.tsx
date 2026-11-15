@@ -1,29 +1,23 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { vi } from '@/shared/i18n/vi'
+import './globals.css'
 
-const geistSans = Geist({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Subset 'vietnamese' để hiển thị đủ dấu tiếng Việt (NFR-24)
+const inter = Inter({
+  variable: '--font-sans',
+  subsets: ['latin', 'vietnamese'],
+})
 
 export const metadata: Metadata = {
-  title: "Buddio",
-  description: "Nhắn tin với bạn bè",
-};
+  title: vi.app.name,
+  description: vi.app.description,
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="vi" className={`${inter.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col bg-background text-foreground">{children}</body>
     </html>
-  );
+  )
 }

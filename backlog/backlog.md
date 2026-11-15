@@ -46,7 +46,7 @@
 ## 4. Danh sách task
 | ID | Tiêu đề | Epic | Milestone | Point | Phụ thuộc | Sprint | Trạng thái | File |
 |---|---|---|---|---|---|---|---|---|
-| T-001 | Khởi tạo dự án chạy local + emulator, CI xanh | EPIC-01 | M0 | 3 | — | S1 | TODO | [T-001](tasks/T-001-project-skeleton-emulator-ci.md) |
+| T-001 | Khởi tạo dự án chạy local + emulator, CI xanh | EPIC-01 | M0 | 3 | — | S1 | DONE | [T-001](tasks/T-001-project-skeleton-emulator-ci.md) |
 | T-002 | Đăng nhập Google lần đầu & đồng ý chính sách | EPIC-01 | M0 | 5 | T-001 | S1 | TODO | [T-002](tasks/T-002-google-sign-in-consent.md) |
 | T-003 | Đăng xuất & hết phiên sau 30 ngày không dùng | EPIC-01 | M0 | 2 | T-002 | S1 | TODO | [T-003](tasks/T-003-sign-out-session-expiry.md) |
 | T-004 | Cài đặt tài khoản: đổi tên, ẩn danh, hiển thị online | EPIC-01 | M1 | 3 | T-003 | S2 | TODO | [T-004](tasks/T-004-account-settings.md) |

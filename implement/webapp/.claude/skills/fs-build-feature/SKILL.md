@@ -7,7 +7,7 @@ description: Điều phối xây một feature/task mới của webapp Buddio t�
 
 Vai trò: **điều phối**. Skill này đọc spec, lập plan, giao việc cho worker theo đúng thứ tự, theo dõi kết quả. **Không tự viết code của tầng nào**. Mọi file code đều do worker tạo ra.
 
-Đọc trước: `../_shared/architecture.md`, `../_shared/handoff.md`, `../_shared/specs-map.md`.
+Đọc trước: `../_shared/architecture.md`, `../_shared/handoff.md`, `../_shared/specs-map.md`, `../_shared/history.md`.
 
 ## Bước 0: Đầu vào và điều kiện
 
@@ -16,6 +16,7 @@ Vai trò: **điều phối**. Skill này đọc spec, lập plan, giao việc ch
    - Prompt tự do → tìm task gần nhất trong `../../backlog/backlog.md`. Không có task thì dựa vào prompt và specs, rồi đặt id `F-<slug>`.
 2. **Phụ thuộc:** đọc cột "Phụ thuộc" của task. Task phụ thuộc chưa `DONE` thì **dừng** và báo user (đề nghị làm task đó trước, hoặc user xác nhận làm tiếp bằng stub).
 3. **Khung:** `src/shared/contracts/index.ts` chưa có thì gọi `fs-scaffold init` trước.
+4. **Lịch sử:** đọc `.claude/history/INDEX.md`, rồi đọc bản ghi gần nhất của (a) chính task này nếu đã từng chạy, (b) các task phụ thuộc, (c) các task cùng feature. Đưa mục "Còn mở" và "Ghi chú cho lần sau" liên quan vào `## Issues` của plan.
 
 ## Bước 1: Phân tích và chọn transport
 
@@ -69,7 +70,9 @@ fs-verify
 ## Bước 5: Kết thúc
 
 - Cập nhật task: tick checkbox mục 3 đã làm, đổi cột `Trạng thái` thành `DONE` **chỉ khi** verify PASS.
-- Báo user:
+- **Ghi history (bắt buộc, kể cả khi FAIL hoặc STOPPED):** tạo `.claude/history/<yyyy-mm-dd>_<task-id>_<slug>.md` theo mẫu ở `_shared/history.md`, rồi thêm một dòng lên đầu bảng trong `.claude/history/INDEX.md`. Dữ liệu lấy từ plan: Meta (quyết định transport), Output của từng section (file theo tầng), AC map, kết quả verify, Issues (lệch spec và việc còn mở).
+  - Dừng ở Bước 0 vì phụ thuộc chưa xong cũng ghi bản ghi `STOPPED`, kèm lý do.
+- Báo user (kèm đường dẫn bản ghi history):
   - AC nào pass bằng test tự động, AC nào cần test tay (kèm bước từ mục "Test tay" của task).
   - Các file chính đã tạo, theo tầng.
   - Giả định và độ lệch so với spec (từ `## Issues`).
@@ -81,3 +84,4 @@ fs-verify
 - Không bỏ qua `fs-contract` hay `fs-verify`.
 - Không chọn `api-route` khi không thoả bảng ở Bước 1.
 - Không đánh dấu `DONE` khi verify chưa PASS.
+- Không kết thúc mà chưa ghi history.

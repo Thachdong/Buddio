@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Buddio webapp
 
-## Getting Started
+Next.js 16 (App Router) + React 19 + Firebase (Auth, Firestore, Realtime Database, Storage, Cloud Functions 2nd gen).
+Kiến trúc và quy ước: [.claude/skills/_shared/architecture.md](.claude/skills/_shared/architecture.md).
 
-First, run the development server:
+## Chạy local
+
+Yêu cầu: **Node 22**, **Java 21+** (Firebase Emulator Suite chạy trên JVM). Không cần project Firebase thật:
+emulator dùng project id `demo-buddio` (Firebase coi `demo-*` là project giả, không gọi dịch vụ thật).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd implement/webapp
+npm ci
+npm ci --prefix functions          # Cloud Functions (chưa có function, cần để emulator load được)
+cp .env.example .env.local         # biến emulator + NEXT_PUBLIC_FIREBASE_* (demo-buddio)
+npx playwright install chromium    # một lần, cho test e2e
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Hai terminal:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run emulators   # Auth 9099 · Firestore 8080 · Database 9000 · Storage 9199 · Functions 5001 · UI http://localhost:4000
+npm run dev         # http://localhost:3000 → chuyển /login
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Kiểm nhanh:
 
-## Learn More
+```bash
+curl -i http://localhost:3000/api/health   # 200 {"status":"ok"}
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Lệnh
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Lệnh | Việc |
+|---|---|
+| `npm run dev` | Next dev server |
+| `npm run emulators` | Firebase Emulator Suite + UI |
+| `npm run seed` | Ghi dữ liệu mẫu vào emulator (chỉ chạy với `demo-*` / emulator) |
+| `npm run lint` | ESLint (gồm `eslint-plugin-boundaries` kiểm ranh giới tầng) |
+| `npm run typecheck` | `next typegen && tsc --noEmit` |
+| `npm run format` / `format:check` | Prettier |
+| `npm run test:unit` | Vitest project `unit` (không cần emulator) |
+| `npm run test:emulator` | Vitest project `emulator` (rules, service) — cần emulator đang chạy |
+| `npm run test:e2e` | Playwright, viewport mobile 375×812 (tự bật `npm run dev`) |
+| `npm test` | Tất cả, trong `firebase emulators:exec` (giống CI) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Firebase
 
-## Deploy on Vercel
+- Rules / index: `firebase/` (`firestore.rules`, `firestore.indexes.json`, `database.rules.json`, `storage.rules`). Client chỉ đọc; mọi ghi đi qua server (ADR-03).
+- Cloud Functions: `functions/` (region `asia-southeast1`).
+- TLS và mã hoá khi lưu: mặc định của Google, không cấu hình thêm (NFR-12, ADR-07).
+- TTL (ADR-09) không chạy trên emulator; bật trên project thật bằng
+  `gcloud firestore fields ttls update expire_at --collection-group=<messages|notifications> --enable-ttl`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## CI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.github/workflows/ci.yml` (gốc repo): Node 22, Java 21, cache npm + emulator jars → lint → typecheck → `npm test`.
