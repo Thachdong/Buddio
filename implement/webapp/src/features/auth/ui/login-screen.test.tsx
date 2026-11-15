@@ -37,15 +37,13 @@ describe('SCR-01 /login — từ điển (NFR-24)', () => {
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean)
-    const dictionary = new Set<string>([vi.app.name, ...Object.values(vi.auth.login)])
+    const dictionary = new Set<string>(Object.values(vi.auth.login))
     expect(visible).toEqual(
-      expect.arrayContaining([
-        vi.app.name,
-        vi.auth.login.tagline,
-        vi.auth.login.signInWithGoogle,
-        vi.auth.login.privacyPolicy,
-      ]),
+      expect.arrayContaining([vi.auth.login.tagline, vi.auth.login.signInWithGoogle, vi.auth.login.privacyPolicy]),
     )
     for (const text of visible) expect(dictionary).toContain(text)
+    // logo (ảnh có chữ) — tên app nằm ở alt, cũng lấy từ vi
+    const alts = [...html.matchAll(/alt="([^"]*)"/g)].map((m) => m[1])
+    expect(alts).toEqual([vi.app.name])
   })
 })

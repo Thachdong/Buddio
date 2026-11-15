@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MessagesSquare } from 'lucide-react'
+import Image from 'next/image'
 import { vi } from '@/shared/i18n/vi'
 import { Button } from '@/shared/ui/button'
 
@@ -14,13 +14,19 @@ export function LoginScreen() {
     <main className="flex min-h-dvh w-full flex-col items-center px-6 py-10">
       <div className="flex w-full max-w-[400px] flex-1 flex-col items-center justify-center gap-8 text-center">
         <div className="flex flex-col items-center gap-3">
-          <div
-            aria-hidden="true"
-            className="flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
-          >
-            <MessagesSquare className="size-8" />
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">{vi.app.name}</h1>
+          {/* Logo đã gồm chữ "Buddio": alt giữ tên cho heading (screen reader, e2e getByRole('heading')) */}
+          <h1 className="w-full max-w-[280px]">
+            <Image
+              src="/asset/logo.png"
+              alt={vi.app.name}
+              width={1536}
+              height={1024}
+              sizes="280px"
+              loading="eager"
+              fetchPriority="high"
+              className="h-auto w-full"
+            />
+          </h1>
           <p className="text-base text-muted-foreground">{t.tagline}</p>
         </div>
 

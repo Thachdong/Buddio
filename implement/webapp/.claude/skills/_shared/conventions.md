@@ -109,6 +109,7 @@ Path, method, status và body phải khớp `api-contract.yml`. Auth: dùng cook
 ## 8. UI
 
 - Mobile-first từ 360px. Dùng shadcn/ui ở `@/shared/ui` và Tailwind 4.
+- Màu, radius, shadow chỉ lấy từ token Buddio trong `src/app/globals.css` (không hex). Brand: `bg-primary` / `hover:bg-primary-hover`, `bg-brand-secondary`, `bg-brand-accent`; nền/chữ: `bg-background`, `bg-surface`, `text-text-secondary`, `text-text-muted`; trạng thái: `text-success|warning|error|info`; chat: `bg-chat-own`, `bg-chat-other`; game: `*-game-player-1..4`. **`bg-secondary`/`bg-accent` là nền phụ trung tính của shadcn, không phải xanh/vàng brand.**
 - **Mọi chuỗi hiển thị** lấy từ `vi` (`@/shared/i18n/vi`). Không hardcode tiếng Việt trong component.
 - Component trong `ui/` không gọi `fetch`, không gọi action, không dùng Firebase. Data và callback đi vào qua props hoặc qua hook của chính feature.
 - Có đủ state: loading (skeleton/spinner) · empty · error · success. Có a11y: label, `aria-*`, focus, hỗ trợ bàn phím.
