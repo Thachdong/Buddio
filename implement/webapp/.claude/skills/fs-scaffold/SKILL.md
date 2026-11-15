@@ -32,7 +32,7 @@ Thứ tự thực hiện:
 4. **Copy template:** `templates/` vào gốc webapp, giữ nguyên đường dẫn:
    - `src/shared/contracts/{error-codes,primitives,result,index}.ts`
    - `src/shared/server/{firebase-admin,errors,auth,action,route,logger}.ts`
-   - `src/shared/client/firebase.ts`
+   - `src/shared/client/{firebase,call-action}.ts`
    - `src/shared/lib/{utils,date}.ts` (`utils` re-export `cn` từ package `cn` của shadcn), `src/shared/i18n/vi.ts`
    - `eslint.config.mjs` (thay file cũ; giữ phần next nếu file cũ có thêm cấu hình riêng)
    - `.env.example`; thêm `!.env.example` và `.work/` vào `.gitignore`

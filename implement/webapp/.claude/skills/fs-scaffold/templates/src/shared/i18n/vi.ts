@@ -60,6 +60,7 @@ export const vi = {
     staleDeploy: 'Ứng dụng vừa được cập nhật. Vui lòng tải lại trang.',
     retry: 'Thử lại',
     loading: 'Đang tải…',
+    loadError: 'Không tải được dữ liệu.',
   },
   errors,
 } as const

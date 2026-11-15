@@ -101,7 +101,7 @@ Path, method, status và body phải khớp `api-contract.yml`. Auth: dùng cook
 ## 7. Repository & Firestore
 
 - Mỗi collection thuộc **một feature sở hữu** (xem `specs-map.md`). Chỉ repo của feature đó được ghi vào collection đó.
-- `*.doc.ts`: type document snake_case + `FirestoreDataConverter` + hàm `toDto()`. Timestamp đổi sang ISO ở đây.
+- `*.doc.ts`: type document snake_case, type Entity camelCase, hàm `toXxxDoc`/`fromXxxDoc` (không dùng `withConverter`), `toXxxDto()`. Timestamp đổi sang Date (entity) và ISO (DTO) ở đây.
 - Mọi hàm repo nhận tham số cuối là `tx?: Transaction`, để service gộp nhiều repo vào một transaction.
 - Không trả document thô ra ngoài repo; luôn trả DTO hoặc type domain đã map.
 - Rules: client **chỉ đọc**, mọi `write` đều deny (trừ RTDB `status`, `typing`).

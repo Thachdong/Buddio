@@ -19,7 +19,7 @@ implement/webapp/
     app/                                  # ROUTING ONLY — mỏng
       (public)/login/page.tsx
       (tabs)/friends/page.tsx             # ráp feature: gọi queries, render ui
-      (tabs)/friends/add/page.tsx
+      (full)/friends/add/page.tsx         #   màn con toàn màn hình (ẩn tab bar)
       api/<resource>/route.ts             # CHỈ khi được yêu cầu
       layout.tsx  globals.css
     features/

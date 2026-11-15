@@ -47,8 +47,8 @@ const boundaryRules = {
       el("app-api", "src/app/api"),
       el("app-page", "src/app"),
     ],
-    // proxy.ts (middleware v16) chỉ redirect lạc quan, không thuộc tầng nào
-    "boundaries/ignore": ["src/proxy.ts"],
+    // proxy.ts (middleware v16) chỉ redirect lạc quan; test + helper test được import chéo tầng
+    "boundaries/ignore": ["src/proxy.ts", "src/test/**", "src/**/*.test.ts", "src/**/*.test.tsx"],
   },
   rules: {
     "boundaries/no-unknown-files": "error",
