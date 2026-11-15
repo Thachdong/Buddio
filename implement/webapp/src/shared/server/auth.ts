@@ -16,7 +16,20 @@ const LAST_ACTIVE_THROTTLE_MS = 60 * 60 * 1000 // TBL-01: cập nhật tối đa
  * member   — có tài khoản active + đã đồng ý + phiên chưa quá 30 ngày (mặc định)
  */
 export type AuthLevel = 'public' | 'identity' | 'member'
-export type Identity = { uid: string; email: string | null }
+/** Claim từ ID token / session cookie. name, picture = hồ sơ Google (dùng khi đăng nhập, không log — NFR-27). */
+export type Identity = { uid: string; email: string | null; name: string | null; picture: string | null }
+
+type DecodedClaims = { uid: string; email?: string; name?: unknown; picture?: unknown }
+
+/** Decoded token → Identity. Dùng chung cho cookie, Bearer và ID token khi tạo phiên. */
+export function toIdentity(t: DecodedClaims): Identity {
+  return {
+    uid: t.uid,
+    email: t.email ?? null,
+    name: typeof t.name === 'string' ? t.name : null,
+    picture: typeof t.picture === 'string' ? t.picture : null,
+  }
+}
 export type AuthContext<L extends AuthLevel = AuthLevel> = L extends 'public' ? null : Identity
 
 function mapFirebaseAuthError(err: unknown): AppError {
@@ -30,8 +43,7 @@ export const verifySession = cache(async (): Promise<Identity> => {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value
   if (!cookie) throw new AppError('UNAUTHENTICATED')
   try {
-    const t = await adminAuth().verifySessionCookie(cookie, true)
-    return { uid: t.uid, email: t.email ?? null }
+    return toIdentity(await adminAuth().verifySessionCookie(cookie, true))
   } catch (err) {
     throw mapFirebaseAuthError(err)
   }
@@ -42,8 +54,7 @@ export async function verifyBearer(authorization: string | null): Promise<Identi
   const token = authorization?.match(/^Bearer (.+)$/)?.[1]
   if (!token) return null
   try {
-    const t = await adminAuth().verifyIdToken(token, true)
-    return { uid: t.uid, email: t.email ?? null }
+    return toIdentity(await adminAuth().verifyIdToken(token, true))
   } catch (err) {
     throw mapFirebaseAuthError(err)
   }
@@ -90,6 +101,15 @@ export async function getOptionalIdentity(): Promise<Identity | null> {
     return await verifySession()
   } catch {
     return null
+  }
+}
+
+/** Verify ID token Firebase (checkRevoked) — dùng cho createSession. Throw AppError UNAUTHENTICATED / TOKEN_REVOKED. */
+export async function verifyIdToken(idToken: string): Promise<Identity> {
+  try {
+    return toIdentity(await adminAuth().verifyIdToken(idToken, true))
+  } catch (err) {
+    throw mapFirebaseAuthError(err)
   }
 }
 

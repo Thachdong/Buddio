@@ -66,6 +66,61 @@ export const vi = {
       tagline: 'Trò chuyện, xả stress cùng bạn bè. Vào nhanh chỉ với một cú chạm.',
       signInWithGoogle: 'Đăng nhập với Google',
       privacyPolicy: 'Chính sách quyền riêng tư',
+      signingIn: 'Đang đăng nhập…',
+      // vùng 5 — FLOW-01 E1
+      signInIncomplete: 'Đăng nhập chưa hoàn tất. Vui lòng thử lại.',
+    },
+  },
+  account: {
+    // SCR-01 thành phần 7–10 — dialog đồng ý chính sách (NFR-17)
+    consent: {
+      title: 'Chính sách quyền riêng tư',
+      description: 'Vui lòng đọc và đồng ý để bắt đầu dùng Buddio.',
+      checkbox: 'Tôi đã đọc và đồng ý với Chính sách quyền riêng tư',
+      accept: 'Đồng ý và tiếp tục',
+      decline: 'Không đồng ý',
+    },
+    // Nội dung chính sách — dùng chung cho dialog và trang /privacy
+    privacy: {
+      title: 'Chính sách quyền riêng tư',
+      version: 'Phiên bản',
+      sections: [
+        {
+          heading: 'Dữ liệu chúng tôi thu thập',
+          body: 'Buddio chỉ lấy email, tên và ảnh đại diện từ tài khoản Google của bạn.',
+        },
+        {
+          heading: 'Chia sẻ dữ liệu',
+          body: 'Chúng tôi không chia sẻ dữ liệu của bạn cho bên thứ ba.',
+        },
+        {
+          heading: 'Nơi lưu trữ',
+          body: 'Dữ liệu được lưu tại Singapore.',
+        },
+      ],
+    },
+    // Thanh tab dưới — wireframe.md mục 5
+    tabs: {
+      label: 'Điều hướng chính',
+      rooms: 'Phòng',
+      friends: 'Bạn bè',
+      notifications: 'Thông báo',
+      settings: 'Cài đặt',
+    },
+    // Trang giữ chỗ cho màn chưa làm [ASSUMED → Q-047]
+    comingSoon: {
+      title: 'Sắp có',
+      body: 'Tính năng này đang được hoàn thiện.',
+      back: 'Về trang Phòng',
+    },
+  },
+  rooms: {
+    // SCR-03 thành phần 1, 2, 11
+    list: {
+      title: 'Phòng',
+      createRoom: 'Tạo phòng',
+      emptyTitle: 'Chưa có phòng nào',
+      addFriend: 'Thêm bạn',
     },
   },
   common: {

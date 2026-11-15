@@ -1,11 +1,30 @@
 rules_version = '2';
 
-// T-001 khởi điểm deny-all (ADR-03). Client chỉ ĐỌC — mỗi TBL thêm block read ở task tương ứng.
-// Mọi ghi đi qua server (Admin SDK bỏ qua rules).
+// ADR-03: client CHỈ ĐỌC. Mọi ghi đi qua Server Action (Admin SDK bỏ qua rules).
+// Collection chưa khai block bên dưới → mặc định bị từ chối (Firestore deny-by-default).
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Mọi ghi từ client bị cấm (NFR-13)
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if false;
+      allow write: if false;
     }
+
+    // TBL-01 — phần riêng tư, chỉ chủ đọc
+    match /users/{uid} {
+      allow get: if isMe(uid);
+      allow list: if false;
+    }
+
+    // TBL-02 — phần công khai: get khi đã đăng nhập, cấm list (BR-27)
+    match /profiles/{uid} {
+      allow get: if signedIn();
+      allow list: if false;
+    }
+
+    // TBL-03 email_index, TBL-11 config: chỉ server — rơi vào deny mặc định ở trên
   }
 }

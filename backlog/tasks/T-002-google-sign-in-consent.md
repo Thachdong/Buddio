@@ -2,7 +2,7 @@
 
 | Epic | Milestone | Point | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| EPIC-01 | M0 | 5 | T-001 | TODO |
+| EPIC-01 | M0 | 5 | T-001 | DONE |
 
 ## 1. Mục tiêu demo
 Sau task này: **Người dùng mới mở app → bấm "Đăng nhập với Google" (Auth emulator) → thấy dialog chính sách quyền riêng tư → tích "Tôi đã đọc và đồng ý…" → "Đồng ý và tiếp tục" → thấy trang Phòng rỗng với thanh tab 4 mục. Lần đăng nhập sau vào thẳng trang Phòng; ảnh cập nhật theo Google, tên đã tự sửa giữ nguyên.**
@@ -26,37 +26,37 @@ Sau task này: **Người dùng mới mở app → bấm "Đăng nhập với Go
 
 ## 3. Việc cần làm
 ### UI
-- [ ] SCR-01 nút "Đăng nhập với Google": `signInWithRedirect` khi viewport < 1024px, `signInWithPopup` khi ≥ 1024px (ADR-06) `[ASSUMED → Q-047]` phân biệt theo `matchMedia('(min-width: 1024px)')`. Sau khi có ID token → gọi `createSession`.
-- [ ] Trạng thái loading: nút chuyển spinner "Đang đăng nhập…", khóa thao tác (SCR-01 mục 4).
-- [ ] Vùng lỗi (thành phần 5): hủy popup / lỗi Google (`auth/popup-closed-by-user`, `auth/cancelled-popup-request`, lỗi redirect) → "Đăng nhập chưa hoàn tất. Vui lòng thử lại." (E1). Lỗi mạng / 5xx từ API → toast "Không kết nối được, thử lại".
-- [ ] Dialog chính sách (thành phần 7–10): nội dung chỉ thu email, tên, ảnh từ Google; không chia sẻ bên thứ ba; dữ liệu lưu tại Singapore. Checkbox mặc định chưa tích; "Đồng ý và tiếp tục" disabled tới khi tích; không đóng bằng chạm ra ngoài / Esc. "Không đồng ý" → `signOut()`, đóng dialog, ở lại SCR-01.
-- [ ] Lỗi khi `createAccount` → giữ dialog, toast lỗi, cho bấm lại.
-- [ ] Trang tĩnh `/privacy` (SSR, công khai) cùng nội dung chính sách + phiên bản `2026-11`.
-- [ ] Auth guard cho nhóm route `(app)`: `onAuthStateChanged` + `getMe`; chưa đăng nhập → `/login`; `403 CONSENT_REQUIRED` → gọi lại `createSession` để lấy `googleProfile` và mở lại dialog chính sách `[ASSUMED → Q-047]`. `/login` khi đã có phiên + tài khoản → chuyển thẳng `/rooms`.
-- [ ] Context `MeProvider` giữ `me` + `limits` từ `getMe` / `createSession` / `createAccount` cho mọi màn.
-- [ ] Layout chung mobile: thanh tab dưới 4 mục Phòng / Bạn bè / Thông báo / Cài đặt (icon + nhãn, vùng chạm ≥ 44px); tab đang chọn nổi bật. Tab chưa có màn → trang giữ chỗ "Sắp có" `[ASSUMED → Q-047]` (Cài đặt làm ở T-003, Bạn bè T-007, Thông báo T-024).
-- [ ] SCR-03 trạng thái rỗng (thành phần 1, 2, 11): tiêu đề "Phòng", "Chưa có phòng nào", nút "Tạo phòng", "Thêm bạn" — hiện nhưng dẫn tới trang giữ chỗ cho tới T-005 / T-008 `[ASSUMED → Q-047]`.
-- [ ] Client fetch wrapper: gắn `Authorization: Bearer <idToken>` (lấy mới bằng `getIdToken()`), parse schema `Error`, map `code` → thông điệp tiếng Việt từ từ điển.
+- [x] SCR-01 nút "Đăng nhập với Google": `signInWithRedirect` khi viewport < 1024px, `signInWithPopup` khi ≥ 1024px (ADR-06) `[ASSUMED → Q-047]` phân biệt theo `matchMedia('(min-width: 1024px)')`. Sau khi có ID token → gọi `createSession`.
+- [x] Trạng thái loading: nút chuyển spinner "Đang đăng nhập…", khóa thao tác (SCR-01 mục 4).
+- [x] Vùng lỗi (thành phần 5): hủy popup / lỗi Google (`auth/popup-closed-by-user`, `auth/cancelled-popup-request`, lỗi redirect) → "Đăng nhập chưa hoàn tất. Vui lòng thử lại." (E1). Lỗi mạng / 5xx từ API → toast "Không kết nối được, thử lại".
+- [x] Dialog chính sách (thành phần 7–10): nội dung chỉ thu email, tên, ảnh từ Google; không chia sẻ bên thứ ba; dữ liệu lưu tại Singapore. Checkbox mặc định chưa tích; "Đồng ý và tiếp tục" disabled tới khi tích; không đóng bằng chạm ra ngoài / Esc. "Không đồng ý" → `signOut()`, đóng dialog, ở lại SCR-01.
+- [x] Lỗi khi `createAccount` → giữ dialog, toast lỗi, cho bấm lại.
+- [x] Trang tĩnh `/privacy` (SSR, công khai) cùng nội dung chính sách + phiên bản `2026-11`.
+- [x] Auth guard cho nhóm route `(app)`: `onAuthStateChanged` + `getMe`; chưa đăng nhập → `/login`; `403 CONSENT_REQUIRED` → gọi lại `createSession` để lấy `googleProfile` và mở lại dialog chính sách `[ASSUMED → Q-047]`. `/login` khi đã có phiên + tài khoản → chuyển thẳng `/rooms`.
+- [x] Context `MeProvider` giữ `me` + `limits` từ `getMe` / `createSession` / `createAccount` cho mọi màn.
+- [x] Layout chung mobile: thanh tab dưới 4 mục Phòng / Bạn bè / Thông báo / Cài đặt (icon + nhãn, vùng chạm ≥ 44px); tab đang chọn nổi bật. Tab chưa có màn → trang giữ chỗ "Sắp có" `[ASSUMED → Q-047]` (Cài đặt làm ở T-003, Bạn bè T-007, Thông báo T-024).
+- [x] SCR-03 trạng thái rỗng (thành phần 1, 2, 11): tiêu đề "Phòng", "Chưa có phòng nào", nút "Tạo phòng", "Thêm bạn" — hiện nhưng dẫn tới trang giữ chỗ cho tới T-005 / T-008 `[ASSUMED → Q-047]`.
+- [x] Client fetch wrapper: gắn `Authorization: Bearer <idToken>` (lấy mới bằng `getIdToken()`), parse schema `Error`, map `code` → thông điệp tiếng Việt từ từ điển.
 
 ### API / Backend
-- [ ] `withAuth` dùng cho mọi route handler (trừ `getHealth`): đọc `Authorization`, `verifyIdToken(token, true)`; thiếu / sai → `401 UNAUTHENTICATED`; token bị thu hồi → `401 TOKEN_REVOKED`. Tùy chọn `requireAccount` (mặc định bật): chưa có `users/{uid}` `active` → `403 CONSENT_REQUIRED` (ngoại lệ: `createSession`, `createAccount`, `openInviteLink`).
-- [ ] Error handler chung: lỗi Zod → `400 VALIDATION_FAILED` + `details[].field`; `AppError(code, http)` → schema `Error`; lỗi khác → `500 INTERNAL_ERROR` (không lộ stack, log có `requestId`).
-- [ ] `POST /api/sessions` (`createSession`): lấy email, tên, ảnh từ token. Có `users/{uid}` `active` → transaction: `profiles.photo_url` = ảnh Google; nếu `display_name_custom = false` → `display_name` = tên Google (chuẩn hóa theo BR-29); `users.last_active_at = now`; trả `accountStatus: active` + `me` + `limits`. Chưa có → **không ghi gì**, trả `accountStatus: consent_required` + `googleProfile` + `policyVersion: "2026-11"`.
-- [ ] `POST /api/accounts` (`createAccount`): Zod `AccountCreate` (`acceptPrivacyPolicy` = true, `policyVersion` 1–32 ký tự); `policyVersion` khác phiên bản hiện hành → `400 VALIDATION_FAILED` `[ASSUMED → Q-047]`. Transaction tạo `users/{uid}` (`email_norm`, `anonymous=true`, `show_online=true`, `status=active`, `consent_at=now`, `last_active_at=now`, `created_at`, `updated_at`), `profiles/{uid}` (`display_name`, `display_name_custom=false`, `photo_url`, `email`, `status=active`), `email_index/{email_norm}` (`uid`). Email lấy từ token, không nhận từ body. Đã có tài khoản → `200` trả hiện có (idempotent); tạo mới → `201` `MeWithLimits`.
-- [ ] Chuẩn hóa tên (BR-29, FLOW-01 E2): trim; trống / thiếu → phần trước "@" của email; > 50 ký tự → cắt còn 50 `[ASSUMED → Q-047]`.
-- [ ] `email_index/{email_norm}` đã trỏ tới uid khác đang `active` (trường hợp hiếm: đổi uid Google) → `500 INTERNAL_ERROR` + log cảnh báo, không ghi đè `[ASSUMED → Q-047]`.
-- [ ] `GET /api/me` (`getMe`): đọc `users`, `profiles`, `config/limits` (cache 5 phút trong bộ nhớ); cập nhật `users.last_active_at` nếu lần ghi trước cách ≥ 1 giờ; trả `MeWithLimits` (bỏ cột nội bộ: `email_norm`, `lookup_window`, `display_name_custom`).
-- [ ] Repository `config/limits` đọc + map snake_case → camelCase `Limits`.
-- [ ] Log đăng nhập chỉ ghi `uid`, `accountStatus`; không ghi email / tên (NFR-27).
+- [x] `withAuth` dùng cho mọi route handler (trừ `getHealth`): đọc `Authorization`, `verifyIdToken(token, true)`; thiếu / sai → `401 UNAUTHENTICATED`; token bị thu hồi → `401 TOKEN_REVOKED`. Tùy chọn `requireAccount` (mặc định bật): chưa có `users/{uid}` `active` → `403 CONSENT_REQUIRED` (ngoại lệ: `createSession`, `createAccount`, `openInviteLink`).
+- [x] Error handler chung: lỗi Zod → `400 VALIDATION_FAILED` + `details[].field`; `AppError(code, http)` → schema `Error`; lỗi khác → `500 INTERNAL_ERROR` (không lộ stack, log có `requestId`).
+- [x] `POST /api/sessions` (`createSession`): lấy email, tên, ảnh từ token. Có `users/{uid}` `active` → transaction: `profiles.photo_url` = ảnh Google; nếu `display_name_custom = false` → `display_name` = tên Google (chuẩn hóa theo BR-29); `users.last_active_at = now`; trả `accountStatus: active` + `me` + `limits`. Chưa có → **không ghi gì**, trả `accountStatus: consent_required` + `googleProfile` + `policyVersion: "2026-11"`.
+- [x] `POST /api/accounts` (`createAccount`): Zod `AccountCreate` (`acceptPrivacyPolicy` = true, `policyVersion` 1–32 ký tự); `policyVersion` khác phiên bản hiện hành → `400 VALIDATION_FAILED` `[ASSUMED → Q-047]`. Transaction tạo `users/{uid}` (`email_norm`, `anonymous=true`, `show_online=true`, `status=active`, `consent_at=now`, `last_active_at=now`, `created_at`, `updated_at`), `profiles/{uid}` (`display_name`, `display_name_custom=false`, `photo_url`, `email`, `status=active`), `email_index/{email_norm}` (`uid`). Email lấy từ token, không nhận từ body. Đã có tài khoản → `200` trả hiện có (idempotent); tạo mới → `201` `MeWithLimits`.
+- [x] Chuẩn hóa tên (BR-29, FLOW-01 E2): trim; trống / thiếu → phần trước "@" của email; > 50 ký tự → cắt còn 50 `[ASSUMED → Q-047]`.
+- [x] `email_index/{email_norm}` đã trỏ tới uid khác đang `active` (trường hợp hiếm: đổi uid Google) → `500 INTERNAL_ERROR` + log cảnh báo, không ghi đè `[ASSUMED → Q-047]`.
+- [x] `GET /api/me` (`getMe`): đọc `users`, `profiles`, `config/limits` (cache 5 phút trong bộ nhớ); cập nhật `users.last_active_at` nếu lần ghi trước cách ≥ 1 giờ; trả `MeWithLimits` (bỏ cột nội bộ: `email_norm`, `lookup_window`, `display_name_custom`).
+- [x] Repository `config/limits` đọc + map snake_case → camelCase `Limits`.
+- [x] Log đăng nhập chỉ ghi `uid`, `accountStatus`; không ghi email / tên (NFR-27).
 
 ### Data
-- [ ] `firestore.rules` mở đọc: `users/{uid}` khi `request.auth.uid == uid`; `profiles/{uid}` `get` khi đã đăng nhập, `list` cấm; `email_index/*`, `config/*` cấm; mọi ghi `if false` (database-design 4.3, NFR-13).
-- [ ] `npm run seed`: tạo `config/limits` với 13 giá trị mặc định (database-design mục 6) — idempotent.
-- [ ] Zod schema dùng chung: `Me`, `Limits`, `MeWithLimits`, `SessionResult`, `AccountCreate`, `Error`.
+- [x] `firestore.rules` mở đọc: `users/{uid}` khi `request.auth.uid == uid`; `profiles/{uid}` `get` khi đã đăng nhập, `list` cấm; `email_index/*`, `config/*` cấm; mọi ghi `if false` (database-design 4.3, NFR-13).
+- [x] `npm run seed`: tạo `config/limits` với 13 giá trị mặc định (database-design mục 6) — idempotent.
+- [x] Zod schema dùng chung: `Me`, `Limits`, `MeWithLimits`, `SessionResult`, `AccountCreate`, `Error`.
 
 ### Khác
-- [ ] Hằng `PRIVACY_POLICY_VERSION = "2026-11"` trong `shared/` `[ASSUMED → Q-047]` nơi đặt.
-- [ ] Helper test e2e `loginWithGoogleEmulator(page, {email, name, photo})` điền màn tài khoản giả của Auth emulator.
+- [x] Hằng `PRIVACY_POLICY_VERSION = "2026-11"` trong `shared/` `[ASSUMED → Q-047]` nơi đặt.
+- [x] Helper test e2e `loginWithGoogleEmulator(page, {email, name, photo})` điền màn tài khoản giả của Auth emulator.
 
 ## 4. Acceptance criteria
 | # | Given | When | Then | Nguồn |
@@ -142,3 +142,9 @@ Sau task này: **Người dùng mới mở app → bấm "Đăng nhập với Go
 - `[ASSUMED → Q-047]` Auth guard đặt phía client (Firebase Auth chạy ở trình duyệt); slice ghi "middleware + client" — Next middleware chỉ dùng để chuyển `/` → `/login` hoặc `/rooms` theo cookie gợi ý nếu cần, không phải nơi kiểm quyền. Kiểm quyền thật nằm ở `withAuth` phía API.
 - `[ASSUMED → Q-047]` `email_index` trỏ uid khác đang active → 500 + log cảnh báo (trường hợp bất thường, spec không nêu).
 - Point 5 khá sát: task gánh nhiều phần nền dùng chung (withAuth, error handler, fetch wrapper, layout tab). Không đề xuất đổi.
+
+## 8. Ghi chú triển khai (2026-11-16)
+- Transport: **Server Action** + cookie `__session` (ADR-03/06 cập nhật), không phải REST `/api/sessions`, `/api/accounts`, `/api/me`. `withAuth` = `requireAuth` (src/shared/server/auth.ts); fetch wrapper = `callAction`. `getMe` là query RSC trong guard `(tabs)`/`(full)`, không có action/endpoint. AC-10/11/12 kiểm qua `requireAuth`/`getMe` thay vì HTTP; bước test tay 12 (`curl /api/me`) không áp dụng.
+- Auth guard đặt server-side (layout `(tabs)`/`(full)` + `proxy.ts` lạc quan), client chỉ lo tạo lại phiên / mở lại dialog.
+- Route group `(app)` → `(tabs)` + `(full)` theo architecture.md.
+- Lịch sử: `.claude/history/2026-11-16_T-002_google-sign-in-consent.md`.
