@@ -66,6 +66,79 @@ export const vi = {
       tagline: 'Trò chuyện, xả stress cùng bạn bè. Vào nhanh chỉ với một cú chạm.',
       signInWithGoogle: 'Đăng nhập với Google',
       privacyPolicy: 'Chính sách quyền riêng tư',
+      signingIn: 'Đang đăng nhập…',
+      // vùng 5 — FLOW-01 E1
+      signInIncomplete: 'Đăng nhập chưa hoàn tất. Vui lòng thử lại.',
+      // vùng 5 — T-003 (FLOW-01 A1, NFR-11)
+      signedOut: 'Bạn đã đăng xuất.',
+      sessionExpired: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
+    },
+  },
+  account: {
+    // SCR-01 thành phần 7–10 — dialog đồng ý chính sách (NFR-17)
+    consent: {
+      title: 'Chính sách quyền riêng tư',
+      description: 'Vui lòng đọc và đồng ý để bắt đầu dùng Buddio.',
+      checkbox: 'Tôi đã đọc và đồng ý với Chính sách quyền riêng tư',
+      accept: 'Đồng ý và tiếp tục',
+      decline: 'Không đồng ý',
+    },
+    // Nội dung chính sách — dùng chung cho dialog và trang /privacy
+    privacy: {
+      title: 'Chính sách quyền riêng tư',
+      version: 'Phiên bản',
+      sections: [
+        {
+          heading: 'Dữ liệu chúng tôi thu thập',
+          body: 'Buddio chỉ lấy email, tên và ảnh đại diện từ tài khoản Google của bạn.',
+        },
+        {
+          heading: 'Chia sẻ dữ liệu',
+          body: 'Chúng tôi không chia sẻ dữ liệu của bạn cho bên thứ ba.',
+        },
+        {
+          heading: 'Nơi lưu trữ',
+          body: 'Dữ liệu được lưu tại Singapore.',
+        },
+      ],
+    },
+    // Thanh tab dưới — wireframe.md mục 5
+    tabs: {
+      label: 'Điều hướng chính',
+      rooms: 'Phòng',
+      friends: 'Bạn bè',
+      notifications: 'Thông báo',
+      settings: 'Cài đặt',
+    },
+    // SCR-11 Cài đặt (T-003: chỉ xem, công tắc disabled tới T-004)
+    settings: {
+      title: 'Cài đặt',
+      photoCaption: 'Ảnh lấy từ Google',
+      email: 'Email',
+      displayName: 'Tên hiển thị',
+      privacySection: 'Quyền riêng tư',
+      anonymous: 'Chế độ ẩn danh',
+      anonymousDescription: 'Khi bật, người khác nhập email của bạn sẽ không tìm thấy bạn.',
+      showOnline: 'Hiển thị trạng thái online',
+      showOnlineDescription: 'Khi tắt, mọi người thấy bạn offline và bạn cũng không thấy online của người khác.',
+      privacyPolicy: 'Chính sách quyền riêng tư',
+      signOut: 'Đăng xuất',
+      loadError: 'Không tải được',
+    },
+    // Trang giữ chỗ cho màn chưa làm [ASSUMED → Q-047]
+    comingSoon: {
+      title: 'Sắp có',
+      body: 'Tính năng này đang được hoàn thiện.',
+      back: 'Về trang Phòng',
+    },
+  },
+  rooms: {
+    // SCR-03 thành phần 1, 2, 11
+    list: {
+      title: 'Phòng',
+      createRoom: 'Tạo phòng',
+      emptyTitle: 'Chưa có phòng nào',
+      addFriend: 'Thêm bạn',
     },
   },
   common: {

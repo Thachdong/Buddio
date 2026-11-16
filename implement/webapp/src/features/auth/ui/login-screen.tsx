@@ -1,13 +1,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { vi } from '@/shared/i18n/vi'
-import { Button } from '@/shared/ui/button'
+import { LoginActions } from './login-actions'
 
 const t = vi.auth.login
 
 /**
- * SCR-01 Đăng nhập — khung tĩnh (T-001). Server component.
- * Nút Google chưa gắn hành động: SCR-01.A1/A2, banner lời mời, vùng lỗi, dialog chính sách → T-002.
+ * SCR-01 Đăng nhập. Server component (static shell, NFR-06); phần tương tác ở <LoginActions /> (client).
+ * Banner lời mời (thành phần 3) → T-011.
  */
 export function LoginScreen() {
   return (
@@ -30,9 +30,7 @@ export function LoginScreen() {
           <p className="text-base text-muted-foreground">{t.tagline}</p>
         </div>
 
-        <Button type="button" size="lg" className="h-12 w-full text-base">
-          {t.signInWithGoogle}
-        </Button>
+        <LoginActions />
       </div>
 
       <footer className="w-full max-w-[400px] pt-6 text-center">
