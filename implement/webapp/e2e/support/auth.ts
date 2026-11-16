@@ -21,7 +21,7 @@ export async function loginWithGoogleEmulator(
     if (user.photo) await page.locator('#profile-photo-input').fill(user.photo)
     await page.locator('#sign-in').click()
   }
-  await page.waitForURL(/localhost:3000/)
+  await page.waitForURL(/\/\/localhost:\d+\//)
 }
 
 export async function expectNoHorizontalScroll(page: Page) {
@@ -30,4 +30,13 @@ export async function expectNoHorizontalScroll(page: Page) {
     client: document.documentElement.clientWidth,
   }))
   expect(scroll).toBeLessThanOrEqual(client)
+}
+
+/** Đăng nhập lần đầu + đồng ý chính sách → /rooms. */
+export async function signUpViaUi(page: Page, user: { email: string; name: string; photo?: string }): Promise<void> {
+  await page.goto('/login')
+  await loginWithGoogleEmulator(page, user)
+  await page.getByRole('checkbox').click()
+  await page.getByRole('button', { name: vi.account.consent.accept }).click()
+  await page.waitForURL(/\/rooms$/)
 }

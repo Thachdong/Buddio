@@ -3,14 +3,15 @@ import { Loader2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 import { PrivacyConsentDialog } from '@/features/account/ui/privacy-consent-dialog'
 import { vi } from '@/shared/i18n/vi'
+import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { useGoogleSignIn } from '../hooks/use-google-sign-in'
 
 const t = vi.auth.login
 
-/** SCR-01 thành phần 4 (nút Google), 5 (vùng lỗi), 7–10 (dialog chính sách). */
+/** SCR-01 thành phần 4 (nút Google), 5 (vùng thông báo: lỗi / đã đăng xuất / hết phiên), 7–10 (dialog chính sách). */
 export function LoginActions() {
-  const { state, error, signIn, declineConsent, consentAccepted } = useGoogleSignIn(toast.error)
+  const { state, message, signIn, declineConsent, consentAccepted } = useGoogleSignIn(toast.error)
 
   let busy: boolean
   switch (state.kind) {
@@ -45,8 +46,12 @@ export function LoginActions() {
         )}
       </Button>
 
-      <p role="alert" aria-live="polite" className="min-h-5 text-sm text-error">
-        {error}
+      <p
+        role="alert"
+        aria-live="polite"
+        className={cn('min-h-5 text-sm', message?.tone === 'info' ? 'text-text-secondary' : 'text-error')}
+      >
+        {message?.text}
       </p>
 
       {state.kind === 'consent' && (

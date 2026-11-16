@@ -4,9 +4,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  signOut,
   type User,
 } from 'firebase/auth'
+import { signOutClient } from '@/shared/client/auth'
 import { clientAuth } from '@/shared/client/firebase'
 
 /** Lỗi sign-in phía Google, đã gộp cho UI (FLOW-01 E1). */
@@ -70,7 +70,7 @@ export async function getCurrentIdToken(): Promise<string | null> {
   return user ? await user.getIdToken(true) : null
 }
 
-/** "Không đồng ý" (SCR-01 nút 10) — signOut Firebase ở trình duyệt. */
+/** "Không đồng ý" (SCR-01 nút 10), đăng xuất (SCR-11.A4) — signOut Firebase ở trình duyệt (chủ động). */
 export async function signOutGoogle(): Promise<void> {
-  await signOut(clientAuth())
+  await signOutClient()
 }

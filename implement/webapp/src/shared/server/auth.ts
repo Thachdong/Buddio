@@ -1,13 +1,15 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
-import { FieldValue, type Timestamp } from 'firebase-admin/firestore'
+import { Timestamp } from 'firebase-admin/firestore'
 import { adminAuth, adminDb } from './firebase-admin'
 import { AppError } from './errors'
+import { getLimits } from './limits'
+import { logger } from './logger'
 
 export const SESSION_COOKIE = '__session' // App Hosting chỉ forward cookie tên này
 export const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000 // giới hạn của Firebase session cookie
-const IDLE_LIMIT_MS = 30 * 24 * 60 * 60 * 1000 // NFR-11
+const DAY_MS = 24 * 60 * 60 * 1000
 const LAST_ACTIVE_THROTTLE_MS = 60 * 60 * 1000 // TBL-01: cập nhật tối đa 1 lần / giờ
 
 /**
@@ -60,24 +62,35 @@ export async function verifyBearer(authorization: string | null): Promise<Identi
   }
 }
 
-/** Đọc TBL-01 tối thiểu để kiểm tài khoản. Ngoại lệ có chủ đích: shared đọc thẳng `users`. */
-async function assertMember(uid: string): Promise<void> {
+/**
+ * Kiểm phiên của tài khoản (NFR-11, NFR-17) — nguồn duy nhất, dùng cho requireAuth('member') và guard RSC (getMe).
+ * Thứ tự: tài khoản active + đã đồng ý → CONSENT_REQUIRED; quá `sessionIdleDays` (config/limits, đúng mốc vẫn còn phiên)
+ * → revokeRefreshTokens + (xoá cookie nếu được phép) + SESSION_EXPIRED, KHÔNG cập nhật last_active_at;
+ * còn phiên và lần ghi trước cách ≥ 1 giờ → last_active_at = now.
+ * Ngoại lệ có chủ đích: shared đọc thẳng `users` (TBL-01).
+ * clearCookie: chỉ true trong Server Action / Route Handler (render RSC không được ghi cookie).
+ */
+export async function checkMemberSession(
+  uid: string,
+  opts: { now?: Date; clearCookie?: boolean } = {},
+): Promise<void> {
+  const now = opts.now ?? new Date()
   const ref = adminDb().collection('users').doc(uid)
-  const snap = await ref.get()
+  const [snap, limits] = await Promise.all([ref.get(), getLimits()])
   const u = snap.data() as
     | { status?: string; consent_at?: Timestamp; last_active_at?: Timestamp }
     | undefined
   if (!u || u.status !== 'active' || !u.consent_at) throw new AppError('CONSENT_REQUIRED')
 
-  const now = Date.now()
-  const last = u.last_active_at?.toMillis() ?? 0
-  if (now - last > IDLE_LIMIT_MS) {
+  const idleMs = now.getTime() - (u.last_active_at?.toMillis() ?? 0)
+  if (idleMs > limits.sessionIdleDays * DAY_MS) {
     await adminAuth().revokeRefreshTokens(uid)
-    await clearSessionCookie()
+    if (opts.clearCookie) await clearSessionCookie()
+    logger.info('session expired', { uid })
     throw new AppError('SESSION_EXPIRED')
   }
-  if (now - last > LAST_ACTIVE_THROTTLE_MS) {
-    await ref.update({ last_active_at: FieldValue.serverTimestamp() })
+  if (idleMs >= LAST_ACTIVE_THROTTLE_MS) {
+    await ref.update({ last_active_at: Timestamp.fromDate(now), updated_at: Timestamp.fromDate(now) })
   }
 }
 
@@ -91,7 +104,7 @@ export async function requireAuth<L extends AuthLevel>(
 ): Promise<AuthContext<L>> {
   if (level === 'public') return null as AuthContext<L>
   const identity = (await verifyBearer(bearer ?? null)) ?? (await verifySession())
-  if (level === 'member') await assertMember(identity.uid)
+  if (level === 'member') await checkMemberSession(identity.uid, { clearCookie: true })
   return identity as AuthContext<L>
 }
 

@@ -47,3 +47,12 @@ export const AccountCreateSchema = z
       .refine((v) => v === PRIVACY_POLICY_VERSION, { message: 'Policy version mismatch' }),
   })
   .strict()
+
+/** SCR-11.A0 — dữ liệu màn Cài đặt đọc từ listener users/{me} + profiles/{me} (không qua API). */
+export const MySettingsSchema = MeSchema.pick({
+  email: true,
+  displayName: true,
+  photoUrl: true,
+  anonymous: true,
+  showOnline: true,
+})

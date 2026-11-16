@@ -24,3 +24,7 @@ export const SessionResultSchema = z.discriminatedUnion('accountStatus', [
     policyVersion: z.string(),
   }),
 ])
+
+/** deleteCurrentSession — không input (gọi `deleteCurrentSessionAction()`), output 204 → undefined */
+export const DeleteCurrentSessionSchema = z.object({}).strict().optional()
+export const NoContentSchema = z.undefined()

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { callAction } from '@/shared/client/call-action'
+import { LoginReasonSchema, type LoginReason } from '@/shared/contracts'
 import { vi } from '@/shared/i18n/vi'
 import type { GoogleProfile } from '../contracts'
 import {
@@ -25,6 +26,19 @@ export type SignInState =
 
 const HOME = '/rooms'
 
+/** Vùng 5 SCR-01: info (đã đăng xuất) hoặc error (huỷ / hết phiên). */
+export type LoginMessage = { tone: 'info' | 'error'; text: string }
+
+const REASON_MESSAGE: Record<LoginReason, LoginMessage> = {
+  signed_out: { tone: 'info', text: t.signedOut },
+  expired: { tone: 'error', text: t.sessionExpired },
+}
+
+function readReason(): LoginReason | null {
+  const r = LoginReasonSchema.safeParse(new URLSearchParams(window.location.search).get('reason'))
+  return r.success ? r.data : null
+}
+
 /**
  * SCR-01.A1 + điều phối dialog chính sách (SCR-01.A2 ở account/hooks/use-privacy-consent).
  * - Mount: kết quả redirect (điện thoại) hoặc Firebase user còn đăng nhập (reload giữa chừng, layout trả
@@ -34,7 +48,8 @@ const HOME = '/rooms'
 export function useGoogleSignIn(onToast: (message: string) => void) {
   const router = useRouter()
   const [state, setState] = useState<SignInState>({ kind: 'checking' })
-  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<LoginMessage | null>(null)
+  const setError = useCallback((text: string) => setMessage({ tone: 'error', text }), [])
   const [, startTransition] = useTransition()
   const toastRef = useRef(onToast)
   useEffect(() => {
@@ -43,7 +58,7 @@ export function useGoogleSignIn(onToast: (message: string) => void) {
 
   const startSession = useCallback(
     async (idToken: string) => {
-      const r = await callAction(() => createSessionAction({ idToken }))
+      const r = await callAction(() => createSessionAction({ idToken }), { onSessionEnded: 'ignore' })
       if (r.ok) {
         if (r.data.accountStatus === 'active') {
           setState({ kind: 'redirecting' })
@@ -55,6 +70,9 @@ export function useGoogleSignIn(onToast: (message: string) => void) {
       }
       setState({ kind: 'idle' })
       switch (r.error.code) {
+        case 'SESSION_EXPIRED':
+          setError(t.sessionExpired)
+          return
         case 'UNAUTHENTICATED':
         case 'TOKEN_REVOKED':
           setError(t.signInIncomplete)
@@ -70,19 +88,31 @@ export function useGoogleSignIn(onToast: (message: string) => void) {
           toastRef.current(r.error.message)
       }
     },
-    [router],
+    [router, setError],
   )
 
-  const handleGoogleError = useCallback((err: unknown) => {
-    setState({ kind: 'idle' })
-    if (err instanceof GoogleSignInError && err.code === 'NETWORK_ERROR') toastRef.current(vi.common.networkError)
-    else setError(t.signInIncomplete)
-  }, [])
+  const handleGoogleError = useCallback(
+    (err: unknown) => {
+      setState({ kind: 'idle' })
+      if (err instanceof GoogleSignInError && err.code === 'NETWORK_ERROR') toastRef.current(vi.common.networkError)
+      else setError(t.signInIncomplete)
+    },
+    [setError],
+  )
 
-  // Mount: redirect result → Firebase user hiện có → idle
+  // Mount: ?reason (đã đăng xuất / hết phiên) → signOut, KHÔNG tự tạo lại phiên
+  //        ngược lại: redirect result → Firebase user hiện có → idle
   useEffect(() => {
     let cancelled = false
     ;(async () => {
+      const reason = readReason()
+      if (reason) {
+        await signOutGoogle().catch(() => {})
+        if (cancelled) return
+        setMessage(REASON_MESSAGE[reason])
+        setState({ kind: 'idle' })
+        return
+      }
       try {
         const token = (await consumeRedirectResult()) ?? (await getCurrentIdToken())
         if (cancelled) return
@@ -98,7 +128,9 @@ export function useGoogleSignIn(onToast: (message: string) => void) {
   }, [startSession, handleGoogleError])
 
   const signIn = useCallback(async () => {
-    setError(null)
+    setMessage(null)
+    // Redirect Google quay về URL hiện tại → bỏ ?reason trước, để lần mount sau không signOut lại
+    if (window.location.search) window.history.replaceState(window.history.state, '', window.location.pathname)
     setState({ kind: 'signing-in' })
     try {
       const token = await signInWithGoogle()
@@ -123,5 +155,5 @@ export function useGoogleSignIn(onToast: (message: string) => void) {
     startTransition(() => router.replace(HOME))
   }, [router])
 
-  return { state, error, signIn, declineConsent, consentAccepted }
+  return { state, message, signIn, declineConsent, consentAccepted }
 }

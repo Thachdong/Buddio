@@ -69,6 +69,9 @@ export const vi = {
       signingIn: 'Đang đăng nhập…',
       // vùng 5 — FLOW-01 E1
       signInIncomplete: 'Đăng nhập chưa hoàn tất. Vui lòng thử lại.',
+      // vùng 5 — T-003 (FLOW-01 A1, NFR-11)
+      signedOut: 'Bạn đã đăng xuất.',
+      sessionExpired: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
     },
   },
   account: {
@@ -106,6 +109,21 @@ export const vi = {
       friends: 'Bạn bè',
       notifications: 'Thông báo',
       settings: 'Cài đặt',
+    },
+    // SCR-11 Cài đặt (T-003: chỉ xem, công tắc disabled tới T-004)
+    settings: {
+      title: 'Cài đặt',
+      photoCaption: 'Ảnh lấy từ Google',
+      email: 'Email',
+      displayName: 'Tên hiển thị',
+      privacySection: 'Quyền riêng tư',
+      anonymous: 'Chế độ ẩn danh',
+      anonymousDescription: 'Khi bật, người khác nhập email của bạn sẽ không tìm thấy bạn.',
+      showOnline: 'Hiển thị trạng thái online',
+      showOnlineDescription: 'Khi tắt, mọi người thấy bạn offline và bạn cũng không thấy online của người khác.',
+      privacyPolicy: 'Chính sách quyền riêng tư',
+      signOut: 'Đăng xuất',
+      loadError: 'Không tải được',
     },
     // Trang giữ chỗ cho màn chưa làm [ASSUMED → Q-047]
     comingSoon: {

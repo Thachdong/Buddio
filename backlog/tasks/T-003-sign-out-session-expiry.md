@@ -2,7 +2,7 @@
 
 | Epic | Milestone | Point | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| EPIC-01 | M0 | 2 | T-002 | TODO |
+| EPIC-01 | M0 | 2 | T-002 | DONE |
 
 ## 1. Mục tiêu demo
 Sau task này: **Người dùng mở tab Cài đặt → thấy ảnh, email, tên và 2 công tắc (chỉ xem) → bấm "Đăng xuất" → về màn Đăng nhập với dòng "Bạn đã đăng xuất.". Dev đặt `users.last_active_at` lùi 31 ngày → người dùng mở lại app → về màn Đăng nhập với dòng "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại."**
@@ -23,22 +23,22 @@ Sau task này: **Người dùng mở tab Cài đặt → thấy ảnh, email, t�
 
 ## 3. Việc cần làm
 ### UI
-- [ ] Tab Cài đặt (SCR-11) theo layout mục 1: header "Cài đặt", ảnh + chú thích "Ảnh lấy từ Google", email (chỉ xem), tên hiển thị (chỉ xem trong task này), 2 công tắc "Chế độ ẩn danh", "Hiển thị trạng thái online" kèm mô tả — **disabled** `[ASSUMED → Q-047]` tới T-004; mục "Chính sách quyền riêng tư" → `/privacy`; nút "Đăng xuất". Các mục "Danh sách đã chặn", "Xóa tài khoản" chưa hiện `[ASSUMED → Q-047]`.
-- [ ] SCR-11.A0: listener `users/{me}` + `profiles/{me}`; loading → skeleton khối hồ sơ + 2 công tắc; lỗi → "Không tải được" + "Thử lại".
-- [ ] Nút "Đăng xuất" (không cần xác nhận): spinner khi đang gọi → `deleteCurrentSession` → `signOut()` → `/login?reason=signed_out` → vùng lỗi SCR-01 hiện "Bạn đã đăng xuất.". Lỗi mạng / 5xx → vẫn `signOut()` và về SCR-01 (Q-044).
-- [ ] Fetch wrapper (từ T-002): nhận `401 SESSION_EXPIRED` hoặc `TOKEN_REVOKED` → `signOut()` → `/login?reason=expired` → "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại." `[ASSUMED → Q-047]` dùng chung một thông điệp cho cả 2 mã.
-- [ ] `onAuthStateChanged` trả null giữa phiên (refresh token bị thu hồi ở thiết bị khác) → về `/login?reason=expired`.
+- [x] Tab Cài đặt (SCR-11) theo layout mục 1: header "Cài đặt", ảnh + chú thích "Ảnh lấy từ Google", email (chỉ xem), tên hiển thị (chỉ xem trong task này), 2 công tắc "Chế độ ẩn danh", "Hiển thị trạng thái online" kèm mô tả — **disabled** `[ASSUMED → Q-047]` tới T-004; mục "Chính sách quyền riêng tư" → `/privacy`; nút "Đăng xuất". Các mục "Danh sách đã chặn", "Xóa tài khoản" chưa hiện `[ASSUMED → Q-047]`.
+- [x] SCR-11.A0: listener `users/{me}` + `profiles/{me}`; loading → skeleton khối hồ sơ + 2 công tắc; lỗi → "Không tải được" + "Thử lại".
+- [x] Nút "Đăng xuất" (không cần xác nhận): spinner khi đang gọi → `deleteCurrentSession` → `signOut()` → `/login?reason=signed_out` → vùng lỗi SCR-01 hiện "Bạn đã đăng xuất.". Lỗi mạng / 5xx → vẫn `signOut()` và về SCR-01 (Q-044).
+- [x] Fetch wrapper (từ T-002): nhận `401 SESSION_EXPIRED` hoặc `TOKEN_REVOKED` → `signOut()` → `/login?reason=expired` → "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại." `[ASSUMED → Q-047]` dùng chung một thông điệp cho cả 2 mã.
+- [x] `onAuthStateChanged` trả null giữa phiên (refresh token bị thu hồi ở thiết bị khác) → về `/login?reason=expired`.
 
 ### API / Backend
-- [ ] `DELETE /api/sessions/current` (`deleteCurrentSession`): `withAuth` (không cần kiểm hết hạn để luôn đăng xuất được) → `auth.revokeRefreshTokens(uid)` → `204`.
-- [ ] `withAuth` thêm bước kiểm phiên: đọc `users/{uid}.last_active_at`; `now − last_active_at > session_idle_days` (từ `config/limits`, mặc định 30) → `revokeRefreshTokens(uid)` + `401 SESSION_EXPIRED`. Áp dụng cho mọi API có `requireAccount` (gồm `getMe`).
-- [ ] Đảm bảo thứ tự: kiểm hết phiên **trước** khi `getMe` cập nhật `last_active_at`.
+- [x] `DELETE /api/sessions/current` (`deleteCurrentSession`): `withAuth` (không cần kiểm hết hạn để luôn đăng xuất được) → `auth.revokeRefreshTokens(uid)` → `204`.
+- [x] `withAuth` thêm bước kiểm phiên: đọc `users/{uid}.last_active_at`; `now − last_active_at > session_idle_days` (từ `config/limits`, mặc định 30) → `revokeRefreshTokens(uid)` + `401 SESSION_EXPIRED`. Áp dụng cho mọi API có `requireAccount` (gồm `getMe`).
+- [x] Đảm bảo thứ tự: kiểm hết phiên **trước** khi `getMe` cập nhật `last_active_at`.
 
 ### Data
-- [ ] Không thêm field. Script dev `npm run dev:age-session -- <email> <days>` lùi `last_active_at` trên emulator để demo / test tay `[ASSUMED → Q-047]`.
+- [x] Không thêm field. Script dev `npm run dev:age-session -- <email> <days>` lùi `last_active_at` trên emulator để demo / test tay `[ASSUMED → Q-047]`.
 
 ### Khác
-- [ ] Thêm thông điệp vào `messages/vi.ts`: "Bạn đã đăng xuất.", "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", nhãn màn Cài đặt.
+- [x] Thêm thông điệp vào `messages/vi.ts`: "Bạn đã đăng xuất.", "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", nhãn màn Cài đặt.
 
 ## 4. Acceptance criteria
 | # | Given | When | Then | Nguồn |
@@ -89,8 +89,8 @@ Sau task này: **Người dùng mở tab Cài đặt → thấy ảnh, email, t�
 
 ## 6. Definition of Done
 - [ ] DoD chung (xem `backlog.md` mục 1)
-- [ ] Kiểm hết phiên nằm trong `withAuth` (không lặp ở từng handler), có test biên 29 / 31 ngày
-- [ ] Ghi chú giới hạn listener Firestore (mục 7) được đưa vào README phần "Bảo mật phiên"
+- [x] Kiểm hết phiên nằm trong `withAuth` (không lặp ở từng handler), có test biên 29 / 31 ngày
+- [x] Ghi chú giới hạn listener Firestore (mục 7) được đưa vào README phần "Bảo mật phiên"
 
 ## 7. Ghi chú
 - `[ASSUMED → Q-047]` Hết phiên khi `now − last_active_at > 30 ngày` (đúng 30 ngày vẫn còn phiên).
@@ -98,3 +98,8 @@ Sau task này: **Người dùng mở tab Cài đặt → thấy ảnh, email, t�
 - `[ASSUMED → Q-047]` Công tắc ở Cài đặt hiện nhưng disabled tới T-004; mục "Danh sách đã chặn" (T-014), "Xóa tài khoản" (T-026) chưa hiện.
 - Giới hạn kỹ thuật (không phải phạm vi mới): `revokeRefreshTokens` không làm mất hiệu lực ID token đang có đối với Firestore listener — thiết bị khác vẫn nhận dữ liệu realtime tối đa tới khi ID token hết hạn (≤ 1 giờ), sau đó refresh thất bại và `onAuthStateChanged` về null. Nếu cần chặn ngay, phải thêm kiểm `auth_time`/revoke trong Security Rules — đề xuất xem lại ở `tech-stack` (ADR-06), không làm trong task này.
 - Point 2 hơi sát vì có thêm khung màn Cài đặt (SCR-11.A0); vẫn giữ 2.
+
+## 8. Ghi chú triển khai (2026-11-16)
+- Transport: Server Action `deleteCurrentSessionAction` (không phải `DELETE /api/sessions/current`); `withAuth` = `requireAuth` → kiểm phiên ở `checkMemberSession` (src/shared/server/auth.ts), dùng chung cho action mức member và guard RSC `getMe`. Fetch wrapper = `callAction`.
+- `messages/vi.ts` → `src/shared/i18n/vi.ts`.
+- Lịch sử: `.claude/history/2026-11-16_T-003_sign-out-session-expiry.md`.

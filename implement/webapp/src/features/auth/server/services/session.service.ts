@@ -2,7 +2,7 @@ import 'server-only'
 import { PRIVACY_POLICY_VERSION } from '@/shared/contracts'
 import type { Identity } from '@/shared/server/auth'
 import { AppError } from '@/shared/server/errors'
-import { adminDb } from '@/shared/server/firebase-admin'
+import { adminAuth, adminDb } from '@/shared/server/firebase-admin'
 import { getLimits } from '@/shared/server/limits'
 import { logger } from '@/shared/server/logger'
 import { normalizeDisplayName } from '@/features/account/contracts'
@@ -47,4 +47,14 @@ export async function createSession(ctx: Identity): Promise<SessionResult> {
   }
   logger.info('createSession', { uid: ctx.uid, accountStatus: 'active' })
   return { accountStatus: 'active', me, limits: await getLimits() }
+}
+
+/**
+ * deleteCurrentSession — FLOW-01 A1 · NFR-11 · Q-044 (kết thúc phiên trên MỌI thiết bị).
+ * revokeRefreshTokens → mọi ID token / session cookie hiện có bị từ chối khi checkRevoked.
+ * Không kiểm hết phiên (luôn đăng xuất được). Cookie do transport xoá.
+ */
+export async function deleteCurrentSession(ctx: Identity): Promise<void> {
+  await adminAuth().revokeRefreshTokens(ctx.uid)
+  logger.info('deleteCurrentSession', { uid: ctx.uid })
 }

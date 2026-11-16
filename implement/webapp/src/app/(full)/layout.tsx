@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SessionWatcher } from '@/features/auth/ui/session-watcher'
 import { AppShellSkeleton } from '../_components/app-shell-skeleton'
 import { RequireMember } from '../_components/require-member'
 
@@ -7,7 +8,10 @@ export default function FullLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-dvh flex-col">
       <Suspense fallback={<AppShellSkeleton />}>
-        <RequireMember>{children}</RequireMember>
+        <RequireMember>
+          <SessionWatcher />
+          {children}
+        </RequireMember>
       </Suspense>
     </div>
   )

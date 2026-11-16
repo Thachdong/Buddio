@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "seed": "tsx --conditions=react-server scripts/seed/index.ts",
+    "dev:age-session": "tsx --conditions=react-server scripts/dev/age-session.ts",
     "emulators": "firebase emulators:start --project demo-buddio",
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",

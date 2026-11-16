@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = 'http://localhost:3000'
+// E2E_PORT: chạy dev server riêng khi port 3000 đang bận (vd đang chạy `npm run dev` để test tay)
+const port = Number(process.env.E2E_PORT ?? 3000)
+const baseURL = `http://localhost:${port}`
 
 /** Biến emulator cho `next dev` (CI không có .env.local): đọc .env.example — chỉ giá trị demo, không có secret. */
 const exampleEnv = Object.fromEntries(
@@ -26,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: `npm run dev -- -p ${port}`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

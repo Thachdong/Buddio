@@ -1,6 +1,6 @@
 import 'client-only'
 import { useSyncExternalStore } from 'react'
-import { onAuthStateChanged, type User } from 'firebase/auth'
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { clientAuth } from './firebase'
 
 export type AuthUser = { uid: string }
@@ -41,3 +41,14 @@ export function useAuthUser(): AuthUser | null | undefined {
     () => undefined,
   )
 }
+
+/**
+ * signOut Firebase do CHÍNH người dùng / app chủ động (đăng xuất, "Không đồng ý", hết phiên đã biết).
+ * Đánh dấu để watcher không coi đây là "phiên bị thu hồi ở thiết bị khác".
+ */
+let intentional = false
+export async function signOutClient(): Promise<void> {
+  intentional = true
+  await signOut(clientAuth())
+}
+export const isIntentionalSignOut = () => intentional

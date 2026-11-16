@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { TabBar } from '@/features/account/ui/tab-bar'
+import { SessionWatcher } from '@/features/auth/ui/session-watcher'
 import { AppShellSkeleton } from '../_components/app-shell-skeleton'
 import { RequireMember } from '../_components/require-member'
 
@@ -8,7 +9,10 @@ export default function TabsLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-dvh flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
       <Suspense fallback={<AppShellSkeleton />}>
-        <RequireMember>{children}</RequireMember>
+        <RequireMember>
+          <SessionWatcher />
+          {children}
+        </RequireMember>
       </Suspense>
       <TabBar />
     </div>
